@@ -43,7 +43,7 @@ def download_tile(x, y, session, max_retries=3):
             else:
                 raise
 
-def merge_tiles(tile_data, grid_size=(3, 3), tile_size=(256, 256)):
+def merge_tiles(tile_data, grid_size=(3, 3), tile_size=(1000, 1000)):
     """Объединяет тайлы в одно изображение"""
     merged_width = grid_size[0] * tile_size[0]
     merged_height = grid_size[1] * tile_size[1]
