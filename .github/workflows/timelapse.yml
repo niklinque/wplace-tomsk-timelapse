@@ -1,4 +1,4 @@
-name: Wplace Timelapse
+name: Wplace Tiles Capture
 
 on:
   schedule:
@@ -34,14 +34,11 @@ jobs:
       run: |
         pip install -r requirements.txt
         
-    - name: Create tiles directory
-      run: mkdir -p tiles images
+    - name: Create directories
+      run: mkdir -p tiles images docs/images
         
     - name: Download and merge tiles
       run: python capture_tiles.py
-      
-    - name: Generate timelapse
-      run: python generate_timelapse.py
       
     - name: Commit and push changes
       run: |

@@ -80,11 +80,14 @@ def save_metadata(timestamp, success_count, total_count):
 
 def update_latest_info(timestamp, filename):
     """Обновляет информацию о последнем изображении"""
+    images_list = [f for f in os.listdir(IMAGES_DIR) if f.endswith('.png')]
+    
     latest_info = {
         'latest_timestamp': timestamp,
         'latest_filename': filename,
         'latest_iso_time': datetime.fromtimestamp(timestamp).isoformat(),
-        'total_images': len([f for f in os.listdir(IMAGES_DIR) if f.endswith('.png')])
+        'total_images': len(images_list),
+        'all_images': sorted(images_list, key=lambda x: int(x.split('_')[1].split('.')[0]), reverse=True)[:50]  # Последние 50 изображений
     }
     
     with open(f"{DOCS_DIR}/latest.json", 'w', encoding='utf-8') as f:

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wplace Timelapse - Томск</title>
+    <title>Wplace Tiles Browser - Томск</title>
     <style>
         * {
             margin: 0;
@@ -175,22 +175,45 @@
 
         .gallery {
             display: none;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 15px;
-            margin-top: 20px;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .gallery-item {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .gallery-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
         }
 
         .gallery img {
             width: 100%;
-            height: 150px;
+            height: 200px;
             object-fit: cover;
-            border-radius: 8px;
             cursor: pointer;
-            transition: transform 0.3s ease;
         }
 
-        .gallery img:hover {
-            transform: scale(1.05);
+        .gallery-info {
+            padding: 15px;
+            text-align: center;
+        }
+
+        .gallery-time {
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .gallery-date {
+            font-size: 0.9em;
+            color: #666;
         }
 
         @media (max-width: 768px) {
@@ -216,8 +239,8 @@
 <body>
     <div class="container">
         <header>
-            <h1>🏙️ Wplace Timelapse</h1>
-            <p class="subtitle">Таймлапс центра Томска в реальном времени</p>
+            <h1>🏙️ Wplace Tiles Browser</h1>
+            <p class="subtitle">Браузер склеенных тайлов центра Томска в реальном времени</p>
         </header>
 
         <div class="main-content">
@@ -240,8 +263,8 @@
                     <div class="value" id="totalFrames">-</div>
                 </div>
                 <div class="info-card">
-                    <h3>Продолжительность</h3>
-                    <div class="value" id="duration">-</div>
+                    <h3>Размер изображения</h3>
+                    <div class="value">768×768</div>
                 </div>
                 <div class="info-card">
                     <h3>Статус</h3>
@@ -250,22 +273,13 @@
             </div>
 
             <div class="controls">
-                <button id="playTimelapse" class="btn btn-primary">▶️ Показать таймлапс</button>
-                <button id="refreshData" class="btn btn-secondary">🔄 Обновить</button>
-                <button id="toggleGallery" class="btn btn-secondary">📸 Галерея</button>
+                <button id="refreshData" class="btn btn-primary">🔄 Обновить данные</button>
+                <button id="toggleGallery" class="btn btn-primary">📸 Показать галерею</button>
+                <button id="downloadLatest" class="btn btn-secondary">⬇️ Скачать последнее</button>
                 <a href="https://github.com/YOUR_USERNAME/wplace-tomsk-timelapse" class="btn btn-secondary" target="_blank">📋 GitHub</a>
             </div>
 
-            <div id="timelapseContainer" class="timelapse-container" style="display: none;">
-                <h3>Таймлапс видео</h3>
-                <video id="timelapseVideo" class="timelapse-video" controls>
-                    <source src="timelapse.mp4" type="video/mp4">
-                    Ваш браузер не поддерживает видео.
-                </video>
-                <p style="margin-top: 10px; color: #666;">
-                    Если видео не загружается, попробуйте <a href="timelapse.gif" target="_blank">GIF версию</a>
-                </p>
-            </div>
+
 
             <div id="gallery" class="gallery"></div>
         </div>
@@ -276,10 +290,10 @@
     </div>
 
     <script>
-        class WplaceTimelapse {
+        class WplaceTilesBrowser {
             constructor() {
                 this.latestData = null;
-                this.timelapseData = null;
+                this.galleryOpen = false;
                 this.init();
             }
 
@@ -298,13 +312,6 @@
                         this.updateLatestInfo();
                     }
 
-                    // Загружаем информацию о таймлапсе
-                    const timelapseResponse = await fetch('timelapse_info.json?' + Date.now());
-                    if (timelapseResponse.ok) {
-                        this.timelapseData = await timelapseResponse.json();
-                        this.updateTimelapseInfo();
-                    }
-
                 } catch (error) {
                     console.error('Ошибка загрузки данных:', error);
                     document.getElementById('status').innerHTML = '🔴 Ошибка';
@@ -316,6 +323,7 @@
 
                 const lastUpdate = new Date(this.latestData.latest_iso_time);
                 document.getElementById('lastUpdate').textContent = lastUpdate.toLocaleString('ru-RU');
+                document.getElementById('totalFrames').textContent = this.latestData.total_images || 0;
                 
                 // Обновляем изображение
                 const img = document.getElementById('latestImage');
@@ -324,28 +332,7 @@
                 document.getElementById('noImage').style.display = 'none';
             }
 
-            updateTimelapseInfo() {
-                if (!this.timelapseData) return;
-
-                document.getElementById('totalFrames').textContent = this.timelapseData.total_frames;
-                
-                const hours = Math.round(this.timelapseData.time_span_hours || 0);
-                document.getElementById('duration').textContent = `${hours}ч`;
-
-                // Показываем кнопку таймлапса только если есть видео
-                const playBtn = document.getElementById('playTimelapse');
-                if (this.timelapseData.has_video || this.timelapseData.has_gif) {
-                    playBtn.style.display = 'inline-block';
-                } else {
-                    playBtn.style.display = 'none';
-                }
-            }
-
             setupEventListeners() {
-                document.getElementById('playTimelapse').addEventListener('click', () => {
-                    this.showTimelapse();
-                });
-
                 document.getElementById('refreshData').addEventListener('click', () => {
                     this.loadData();
                 });
@@ -354,69 +341,96 @@
                     this.toggleGallery();
                 });
 
+                document.getElementById('downloadLatest').addEventListener('click', () => {
+                    this.downloadLatest();
+                });
+
                 // Клик по изображению для увеличения
                 document.getElementById('latestImage').addEventListener('click', () => {
                     window.open('latest.png', '_blank');
                 });
             }
 
-            showTimelapse() {
-                const container = document.getElementById('timelapseContainer');
-                const video = document.getElementById('timelapseVideo');
-                
-                if (container.style.display === 'none') {
-                    container.style.display = 'block';
-                    video.load(); // Перезагружаем видео
-                    container.scrollIntoView({ behavior: 'smooth' });
-                } else {
-                    container.style.display = 'none';
-                }
+            downloadLatest() {
+                const link = document.createElement('a');
+                link.href = 'latest.png';
+                link.download = `wplace_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.png`;
+                link.click();
             }
 
             async toggleGallery() {
                 const gallery = document.getElementById('gallery');
+                const button = document.getElementById('toggleGallery');
                 
-                if (gallery.style.display === 'none' || gallery.style.display === '') {
+                if (!this.galleryOpen) {
                     await this.loadGallery();
                     gallery.style.display = 'grid';
+                    button.textContent = '📸 Скрыть галерею';
+                    this.galleryOpen = true;
+                    gallery.scrollIntoView({ behavior: 'smooth' });
                 } else {
                     gallery.style.display = 'none';
+                    button.textContent = '📸 Показать галерею';
+                    this.galleryOpen = false;
                 }
             }
 
             async loadGallery() {
                 const gallery = document.getElementById('gallery');
-                gallery.innerHTML = '<div class="loading"><div class="spinner"></div><p>Загрузка галереи...</p></div>';
+                gallery.innerHTML = '<div class="loading" style="grid-column: 1/-1;"><div class="spinner"></div><p>Загрузка галереи...</p></div>';
 
                 try {
-                    // Пытаемся загрузить список изображений
+                    // Используем данные из latest.json если они есть
+                    if (this.latestData && this.latestData.all_images) {
+                        this.renderGallery(this.latestData.all_images);
+                        return;
+                    }
+
+                    // Fallback: пытаемся загрузить через директорию images/
                     const response = await fetch('images/');
                     const text = await response.text();
                     
-                    // Простой парсинг HTML для получения списка файлов
                     const imageFiles = [...text.matchAll(/href="([^"]*\.png)"/g)]
                         .map(match => match[1])
                         .filter(file => file.startsWith('wplace_'))
-                        .slice(-20); // Показываем последние 20 изображений
+                        .slice(-30); // Последние 30 изображений
 
-                    gallery.innerHTML = '';
-                    
-                    imageFiles.reverse().forEach(file => {
-                        const img = document.createElement('img');
-                        img.src = `images/${file}`;
-                        img.alt = file;
-                        img.onclick = () => window.open(`images/${file}`, '_blank');
-                        gallery.appendChild(img);
-                    });
-
-                    if (imageFiles.length === 0) {
-                        gallery.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #666;">Изображения еще не загружены</p>';
-                    }
+                    this.renderGallery(imageFiles.reverse());
 
                 } catch (error) {
                     console.error('Ошибка загрузки галереи:', error);
                     gallery.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #666;">Ошибка загрузки галереи</p>';
                 }
+            }
+
+            renderGallery(imageFiles) {
+                const gallery = document.getElementById('gallery');
+                gallery.innerHTML = '';
+
+                if (imageFiles.length === 0) {
+                    gallery.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #666;">Изображения еще не загружены</p>';
+                    return;
+                }
+
+                imageFiles.forEach(filename => {
+                    const timestamp = parseInt(filename.split('_')[1].split('.')[0]);
+                    const date = new Date(timestamp * 1000);
+                    
+                    const item = document.createElement('div');
+                    item.className = 'gallery-item';
+                    
+                    item.innerHTML = `
+                        <img src="images/${filename}" alt="${filename}" 
+                             onclick="window.open('images/${filename}', '_blank')"
+                             loading="lazy">
+                        <div class="gallery-info">
+                            <div class="gallery-time">${date.toLocaleTimeString('ru-RU')}</div>
+                            <div class="gallery-date">${date.toLocaleDateString('ru-RU')}</div>
+                        </div>
+                    `;
+                    
+                    gallery.appendChild(item);
+                });
             }
 
             startAutoRefresh() {
@@ -429,7 +443,7 @@
 
         // Инициализируем приложение
         document.addEventListener('DOMContentLoaded', () => {
-            new WplaceTimelapse();
+            new WplaceTilesBrowser();
         });
     </script>
 </body>

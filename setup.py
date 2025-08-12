@@ -97,6 +97,12 @@ def run_first_test():
             images = [f for f in os.listdir("images") if f.endswith('.png')]
             print(f"📸 Создано изображений: {len(images)}")
         
+        # Проверяем файлы в docs
+        if os.path.exists("docs"):
+            has_latest = os.path.exists("docs/latest.png")
+            has_json = os.path.exists("docs/latest.json")
+            print(f"📄 Файлы для веб-сайта: {'✅' if has_latest and has_json else '❌'}")
+        
         return True
     except Exception as e:
         print(f"❌ Ошибка тестового захвата: {e}")
