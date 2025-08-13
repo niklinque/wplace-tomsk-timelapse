@@ -1,9 +1,10 @@
 {
-  "latest_timestamp": 1755100481.6035137,
-  "latest_filename": "wplace_1755100481.png",
-  "latest_iso_time": "2025-08-13T15:54:41.603514",
-  "total_images": 77,
+  "latest_timestamp": 1755102100.6650016,
+  "latest_filename": "wplace_1755102100.png",
+  "latest_iso_time": "2025-08-13T16:21:40.665002",
+  "total_images": 78,
   "all_images": [
+    "wplace_1755102100.png",
     "wplace_1755100481.png",
     "wplace_1755099810.png",
     "wplace_1755099100.png",
@@ -52,7 +53,6 @@
     "wplace_1755031977.png",
     "wplace_1755031192.png",
     "wplace_1755029933.png",
-    "wplace_1755028391.png",
-    "wplace_1755027728.png"
+    "wplace_1755028391.png"
   ]
 }
