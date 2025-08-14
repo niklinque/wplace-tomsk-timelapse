@@ -2,7 +2,7 @@ name: Generate daily timelapse
 
 on:
   schedule:
-    - cron: '30 0 * * *'
+    - cron: '05 18 * * *'
   workflow_dispatch: {}
 
 permissions:
@@ -100,6 +100,91 @@ jobs:
             exit 0
           fi
           python create_timelapse.py --date "${{ steps.dates.outputs.date }}"
+
+      - name: Cleanup old dumps
+        shell: bash
+        run: |
+          set -e
+          echo "Очистка старых дампов (старше 3 дней)..."
+          
+          # Получаем текущую дату в томском времени
+          python - << 'PY'
+          from datetime import datetime, timedelta, timezone
+          import os
+          import shutil
+          
+          tomsk = timezone(timedelta(hours=7))
+          current_date = datetime.now(tomsk)
+          cutoff_date = current_date - timedelta(days=3)
+          
+          print(f"Удаляем дампы старше {cutoff_date.strftime('%Y-%m-%d')}")
+          
+          if os.path.exists('output'):
+              for item in os.listdir('output'):
+                  item_path = os.path.join('output', item)
+                  if os.path.isdir(item_path) and len(item) == 8 and item.isdigit():
+                      try:
+                          folder_date = datetime.strptime(item, '%Y%m%d')
+                          folder_date = folder_date.replace(tzinfo=tomsk)
+                          
+                          if folder_date < cutoff_date:
+                              print(f"Удаляем папку {item} (дата: {folder_date.strftime('%Y-%m-%d')})")
+                              shutil.rmtree(item_path)
+                          else:
+                              print(f"Оставляем папку {item} (дата: {folder_date.strftime('%Y-%m-%d')})")
+                      except ValueError:
+                          print(f"Пропускаем папку {item} - неверный формат даты")
+              
+              # Показываем оставшиеся папки
+              remaining = [d for d in os.listdir('output') if os.path.isdir(os.path.join('output', d))]
+              print(f"Оставшиеся папки: {remaining}")
+          else:
+              print("Папка output не существует")
+          PY
+          
+          echo "Очистка старых таймлапсов (старше 7 дней)..."
+          
+          # Очищаем старые таймлапсы
+          python - << 'PY'
+          from datetime import datetime, timedelta, timezone
+          import os
+          import glob
+          
+          tomsk = timezone(timedelta(hours=7))
+          current_date = datetime.now(tomsk)
+          cutoff_date = current_date - timedelta(days=7)
+          
+          print(f"Удаляем таймлапсы старше {cutoff_date.strftime('%Y-%m-%d')}")
+          
+          if os.path.exists('timelapse'):
+              pattern = os.path.join('timelapse', 'timelapse_*.mp4')
+              video_files = glob.glob(pattern)
+              
+              for video_file in video_files:
+                  filename = os.path.basename(video_file)
+                  # Извлекаем дату из имени файла: timelapse_YYYYMMDD.mp4
+                  if filename.startswith('timelapse_') and filename.endswith('.mp4'):
+                      date_str = filename[10:18]  # Извлекаем YYYYMMDD
+                      if len(date_str) == 8 and date_str.isdigit():
+                          try:
+                              file_date = datetime.strptime(date_str, '%Y%m%d')
+                              file_date = file_date.replace(tzinfo=tomsk)
+                              
+                              if file_date < cutoff_date:
+                                  print(f"Удаляем файл {filename} (дата: {file_date.strftime('%Y-%m-%d')})")
+                                  os.remove(video_file)
+                              else:
+                                  print(f"Оставляем файл {filename} (дата: {file_date.strftime('%Y-%m-%d')})")
+                          except ValueError:
+                              print(f"Пропускаем файл {filename} - неверный формат даты")
+              
+              # Показываем оставшиеся файлы
+              remaining_files = glob.glob(pattern)
+              remaining_names = [os.path.basename(f) for f in remaining_files]
+              print(f"Оставшиеся таймлапсы: {remaining_names}")
+          else:
+              print("Папка timelapse не существует")
+          PY
 
       - name: Commit and push timelapse
         if: steps.make.outputs.skip != 'true'
