@@ -1,0 +1,53 @@
+name: Download and Merge Tiles
+
+concurrency:
+  group: wplace-tomsk-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch
+  
+jobs:
+  download-and-merge:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Tomsk
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Create output directory
+      run: mkdir -p output
+      
+    - name: Download and merge tiles
+      run: python download_and_merge_tiles.py
+      
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: merged-tiles-${{ github.run_number }}
+        path: output/
+        retention-days: 30
+        
+    - name: Commit and push if changed
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add output/
+        if ! git diff --staged --quiet; then
+          git commit -m "Автоматически создан дамп - $(date)"
+          git push
+        else
+          echo "No changes to commit"
+        fi
