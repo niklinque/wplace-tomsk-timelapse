@@ -240,9 +240,11 @@ def send_to_telegram(video_path, date_str):
         # URL для отправки документа
         url = f"https://api.telegram.org/bot{bot_token}/sendDocument"
         
-        # Открываем файл и отправляем как документ
+        # Открываем файл и отправляем как документ с принудительным именем файла
         with open(video_path, 'rb') as video_file:
-            files = {'document': video_file}
+            # Принудительно указываем расширение .mp4 для отправки как файла
+            filename = f"timelapse_{formatted_date}.mp4"
+            files = {'document': (filename, video_file, 'application/octet-stream')}
             data = {
                 'chat_id': chat_id,
                 'caption': caption,
