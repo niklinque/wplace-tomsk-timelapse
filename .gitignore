@@ -1,0 +1,5 @@
+output/
+tmp_wplace/
+__pycache__/
+*.pyc
+

@@ -1,0 +1,115 @@
+name: Generate daily timelapse
+
+on:
+  schedule:
+    - cron: '30 0 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Compute yesterday date (Tomsk)
+        id: dates
+        shell: bash
+        run: |
+          python - << 'PY'
+          from datetime import datetime, timedelta, timezone
+          import os
+          tomsk = timezone(timedelta(hours=7))
+          y = datetime.now(tomsk) - timedelta(days=1)
+          out = f"date={y.strftime('%Y%m%d')}\n"
+          with open(os.environ['GITHUB_OUTPUT'], 'w', encoding='utf-8') as f:
+              f.write(out)
+          PY
+
+      - name: Restore dumps cache
+        id: dumps-cache
+        uses: actions/cache@v4
+        with:
+          path: output/${{ steps.dates.outputs.date }}
+          key: dumps-${{ steps.dates.outputs.date }}
+
+      - name: Sparse checkout yesterday folder from source repo
+        shell: bash
+        run: |
+          set -e
+          YDATE='${{ steps.dates.outputs.date }}'
+          echo "Fetching dumps for ${YDATE}"
+          if [ -d "output/${YDATE}" ]; then
+            echo "Already have cached dumps for ${YDATE}"
+          else
+            rm -rf tmp_wplace
+            git clone --filter=blob:none --no-checkout https://github.com/niklinque/wplace-tomsk.git tmp_wplace
+            cd tmp_wplace
+            git sparse-checkout init --cone
+            git sparse-checkout set output/${YDATE}
+            git checkout main
+            cd ..
+            mkdir -p output
+            if [ -d "tmp_wplace/output/${YDATE}" ]; then
+              rm -rf "output/${YDATE}"
+              cp -r "tmp_wplace/output/${YDATE}" "output/${YDATE}"
+              echo "found=true" >> $GITHUB_OUTPUT
+            else
+              echo "No dumps found for ${YDATE}"
+              echo "found=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Create timelapse
+        id: make
+        shell: bash
+        run: |
+          set -e
+          if [ "${{ steps.dates.outputs.date }}" = "" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          if [ ! -d "output/${{ steps.dates.outputs.date }}" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          python create_timelapse.py --date "${{ steps.dates.outputs.date }}"
+
+      - name: Commit and push timelapse
+        if: steps.make.outputs.skip != 'true'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md timelapse/
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Add timelapse for ${{ steps.dates.outputs.date }}"
+            git push
+          fi
+
+

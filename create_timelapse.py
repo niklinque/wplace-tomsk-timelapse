@@ -8,6 +8,7 @@ import os
 import glob
 import logging
 import sys
+import argparse
 from datetime import datetime, timedelta, timezone
 from PIL import Image, ImageDraw
 import cv2
@@ -118,10 +119,10 @@ def add_timestamp_overlay(image, timestamp, font_size=36):
     # Позиция для текста (нижний правый угол)
     text_position = (image.width - 300, image.height - 50)
     
-    # Добавляем полупрозрачный фон для текста
+    # Добавляем фон для текста (используем непрозрачный для совместимости)
     text_bbox = draw.textbbox(text_position, timestamp)
-    draw.rectangle([text_bbox[0] - 10, text_bbox[1] - 5, text_bbox[2] + 10, text_bbox[3] + 5], 
-                  fill=(0, 0, 0, 128))
+    draw.rectangle([text_bbox[0] - 10, text_bbox[1] - 5, text_bbox[2] + 10, text_bbox[3] + 5],
+                  fill=(0, 0, 0))
     
     # Добавляем текст
     draw.text(text_position, timestamp, fill=(255, 255, 255), stroke_width=2, stroke_fill=(0, 0, 0))
@@ -239,6 +240,11 @@ def update_readme_with_timelapse_link(date_str, video_filename):
     readme_path = "README.md"
     
     try:
+        # Если README отсутствует — создаем базовый
+        if not os.path.exists(readme_path):
+            base_content = "# Wplace Tomsk Timelapse\n\nЭтот репозиторий содержит автоматически генерируемые таймлапсы.\n\n"
+            with open(readme_path, 'w', encoding='utf-8') as f:
+                f.write(base_content)
         # Читаем текущий README
         with open(readme_path, 'r', encoding='utf-8') as f:
             content = f.read()
@@ -246,8 +252,15 @@ def update_readme_with_timelapse_link(date_str, video_filename):
         # Форматируем дату для отображения
         formatted_date = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
         
-        # Создаем ссылку на видео
-        video_link = f"[🎬 Таймлапс за {formatted_date}](./timelapse/{video_filename})"
+        # Создаем ссылку и встроенный предпросмотр видео (если поддерживается рендером)
+        video_url = f"./timelapse/{video_filename}"
+        video_link = f"[🎬 Таймлапс за {formatted_date}]({video_url})"
+        video_preview = (
+            f"<video controls width=\"640\" poster=\"\">\n"
+            f"  <source src=\"{video_url}\" type=\"video/mp4\">\n"
+            f"  Ваш браузер не поддерживает воспроизведение видео. Ссылка: {video_link}\n"
+            f"</video>\n"
+        )
         
         # Проверяем, есть ли уже секция с последним таймлапсом
         timelapse_section_marker = "## 🎬 Последний таймлапс"
@@ -263,7 +276,7 @@ def update_readme_with_timelapse_link(date_str, video_filename):
                 new_content = content[:start_pos] + f"{timelapse_section_marker}\n\n{video_link}\n\n"
             else:
                 # Заменяем секцию
-                new_content = content[:start_pos] + f"{timelapse_section_marker}\n\n{video_link}\n\n" + content[next_section:]
+                new_content = content[:start_pos] + f"{timelapse_section_marker}\n\n{video_preview}\n" + content[next_section:]
         else:
             # Добавляем новую секцию в начало файла после заголовка
             lines = content.split('\n')
@@ -280,7 +293,7 @@ def update_readme_with_timelapse_link(date_str, video_filename):
             
             # Вставляем секцию
             lines.insert(insert_pos, f"{timelapse_section_marker}\n")
-            lines.insert(insert_pos + 1, f"{video_link}\n")
+            lines.insert(insert_pos + 1, video_preview)
             new_content = '\n'.join(lines)
         
         # Записываем обновленный README
@@ -292,6 +305,11 @@ def update_readme_with_timelapse_link(date_str, video_filename):
     except Exception as e:
         logger.error(f"Ошибка при обновлении README.md: {e}")
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Создание видео-таймлапса из изображений за день")
+    parser.add_argument("--date", dest="date_str", help="Дата в формате YYYYMMDD. По умолчанию — вчера (Томск)")
+    return parser.parse_args()
+
 def main():
     """
     Основная функция скрипта.
@@ -299,9 +317,13 @@ def main():
     # Создаем директорию для таймлапсов
     os.makedirs(TIMELAPSE_DIR, exist_ok=True)
     
-    # Получаем вчерашнюю дату (так как скрипт обычно запускается на следующий день)
-    yesterday = datetime.now(TOMSK_TZ) - timedelta(days=1)
-    date_str = yesterday.strftime("%Y%m%d")
+    args = parse_args()
+    if args.date_str:
+        date_str = args.date_str
+    else:
+        # Получаем вчерашнюю дату (так как скрипт обычно запускается на следующий день)
+        yesterday = datetime.now(TOMSK_TZ) - timedelta(days=1)
+        date_str = yesterday.strftime("%Y%m%d")
     
     logger.info(f"Создаю таймлапс за {date_str}")
     
