@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # Константы
 OUTPUT_DIR = "output"
 TIMELAPSE_DIR = "timelapse"
-VIDEO_WIDTH = 1920
+VIDEO_WIDTH = 1080
 VIDEO_HEIGHT = 1080
 FPS = 30  # 30 кадров в секунду
 BACKGROUND_COLOR = (255, 255, 255)  # Белый фон
@@ -114,20 +114,31 @@ def add_timestamp_overlay(image, timestamp, font_size=36):
     Returns:
         PIL.Image: Изображение с временной меткой
     """
-    draw = ImageDraw.Draw(image)
-    
-    # Позиция для текста (нижний правый угол)
-    text_position = (image.width - 300, image.height - 50)
-    
-    # Добавляем фон для текста (используем непрозрачный для совместимости)
-    text_bbox = draw.textbbox(text_position, timestamp)
-    draw.rectangle([text_bbox[0] - 10, text_bbox[1] - 5, text_bbox[2] + 10, text_bbox[3] + 5],
-                  fill=(0, 0, 0))
-    
-    # Добавляем текст
-    draw.text(text_position, timestamp, fill=(255, 255, 255), stroke_width=2, stroke_fill=(0, 0, 0))
-    
-    return image
+    # Подготовим RGBA для полупрозрачности
+    base = image.convert('RGBA')
+    overlay = Image.new('RGBA', base.size, (255, 255, 255, 0))
+    draw = ImageDraw.Draw(overlay)
+
+    # Вычислим размер текста и позицию по центру снизу
+    # Начальная позиция для bbox (0,0), затем отцентрируем вручную
+    text_bbox = draw.textbbox((0, 0), timestamp)
+    text_width = text_bbox[2] - text_bbox[0]
+    text_height = text_bbox[3] - text_bbox[1]
+    margin_x = 16
+    margin_y = 12
+    x = (image.width - text_width) // 2
+    y = image.height - text_height - margin_y - 8
+
+    # Полупрозрачный фон под текст
+    bg_rect = [x - margin_x, y - margin_y, x + text_width + margin_x, y + text_height + margin_y]
+    draw.rectangle(bg_rect, fill=(0, 0, 0, 128))
+
+    # Полупрозрачный (слегка) текст со stroke для читаемости
+    draw.text((x, y), timestamp, fill=(255, 255, 255, 230), stroke_width=2, stroke_fill=(0, 0, 0, 160))
+
+    # Композитим и возвращаем в RGB
+    composed = Image.alpha_composite(base, overlay).convert('RGB')
+    return composed
 
 def add_red_border(image, border_color=(255, 0, 0), border_thickness=4, box=None):
     """
@@ -353,10 +364,7 @@ def main():
         import shutil
         shutil.copy2(output_path, latest_path)
         logger.info(f"Создана копия как: {latest_path}")
-        
-        # Обновляем README.md со ссылкой на новый таймлапс
-        update_readme_with_timelapse_link(date_str, output_filename)
-        
+
         return True
     else:
         logger.error("Не удалось создать таймлапс")
