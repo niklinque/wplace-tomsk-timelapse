@@ -1,11 +1,8 @@
-# Wplace Tomsk Timelapse
+# Таймлапсы Томска в Wplace.live
 
 ## 🎬 Последний таймлапс
 
-<video controls width="640" poster="">
-  <source src="./timelapse/timelapse_20250813.mp4" type="video/mp4">
-  Ваш браузер не поддерживает воспроизведение видео. Ссылка: [🎬 Таймлапс за 2025-08-13](./timelapse/timelapse_20250813.mp4)
-</video>
+https://github.com/niklinque/wplace-tomsk-timelapse/raw/refs/heads/main/timelapse/timelapse_20250813.mp4
 
 Этот репозиторий содержит автоматически генерируемые таймлапсы.
 
