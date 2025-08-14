@@ -86,6 +86,9 @@ jobs:
       - name: Create timelapse
         id: make
         shell: bash
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           set -e
           if [ "${{ steps.dates.outputs.date }}" = "" ]; then
