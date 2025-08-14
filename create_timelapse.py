@@ -129,47 +129,12 @@ def add_timestamp_overlay(image, timestamp, font_size=36):
     x = (image.width - text_width) // 2
     y = image.height - text_height - margin_y - 8
 
-    # Полупрозрачный фон под текст
-    bg_rect = [x - margin_x, y - margin_y, x + text_width + margin_x, y + text_height + margin_y]
-    draw.rectangle(bg_rect, fill=(0, 0, 0, 128))
-
     # Полупрозрачный (слегка) текст со stroke для читаемости
     draw.text((x, y), timestamp, fill=(255, 255, 255, 230), stroke_width=2, stroke_fill=(0, 0, 0, 160))
 
     # Композитим и возвращаем в RGB
     composed = Image.alpha_composite(base, overlay).convert('RGB')
     return composed
-
-def add_red_border(image, border_color=(255, 0, 0), border_thickness=4, box=None):
-    """
-    Добавляет красную рамку вокруг изображения.
-    
-    Args:
-        image (PIL.Image): Изображение
-        border_color (tuple): Цвет рамки в формате RGB
-        border_thickness (int): Толщина рамки в пикселях
-        
-    Returns:
-        PIL.Image: Изображение с рамкой
-    """
-    draw = ImageDraw.Draw(image)
-    if box is None:
-        x0, y0 = 0, 0
-        x1, y1 = image.width - 1, image.height - 1
-    else:
-        x, y, w, h = box
-        x0, y0 = x, y
-        x1, y1 = x + w - 1, y + h - 1
-    # Рисуем несколько прямоугольников внутрь для толщины рамки
-    for offset in range(border_thickness):
-        draw.rectangle(
-            [
-                (x0 + offset, y0 + offset),
-                (x1 - offset, y1 - offset)
-            ],
-            outline=border_color
-        )
-    return image
 
 def create_timelapse_video(images, output_path):
     """
@@ -215,9 +180,6 @@ def create_timelapse_video(images, output_path):
                 # Добавляем временную метку
                 final_image = add_timestamp_overlay(resized_image, timestamp)
                 
-                # Добавляем красную рамку вокруг области вставленного изображения (9000x9000 после масштабирования)
-                final_image = add_red_border(final_image, box=placement)
-                
                 # Конвертируем PIL в OpenCV формат
                 opencv_image = cv2.cvtColor(np.array(final_image), cv2.COLOR_RGB2BGR)
                 
@@ -239,82 +201,6 @@ def create_timelapse_video(images, output_path):
     except Exception as e:
         logger.error(f"Ошибка при создании видео: {e}")
         return False
-
-def update_readme_with_timelapse_link(date_str, video_filename):
-    """
-    Обновляет README.md со ссылкой на последний созданный таймлапс.
-    
-    Args:
-        date_str (str): Дата в формате YYYYMMDD
-        video_filename (str): Имя файла видео
-    """
-    readme_path = "README.md"
-    
-    try:
-        # Если README отсутствует — создаем базовый
-        if not os.path.exists(readme_path):
-            base_content = "# Wplace Tomsk Timelapse\n\nЭтот репозиторий содержит автоматически генерируемые таймлапсы.\n\n"
-            with open(readme_path, 'w', encoding='utf-8') as f:
-                f.write(base_content)
-        # Читаем текущий README
-        with open(readme_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        
-        # Форматируем дату для отображения
-        formatted_date = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
-        
-        # Создаем ссылку и встроенный предпросмотр видео (если поддерживается рендером)
-        video_url = f"./timelapse/{video_filename}"
-        video_link = f"[🎬 Таймлапс за {formatted_date}]({video_url})"
-        video_preview = (
-            f"<video controls width=\"640\" poster=\"\">\n"
-            f"  <source src=\"{video_url}\" type=\"video/mp4\">\n"
-            f"  Ваш браузер не поддерживает воспроизведение видео. Ссылка: {video_link}\n"
-            f"</video>\n"
-        )
-        
-        # Проверяем, есть ли уже секция с последним таймлапсом
-        timelapse_section_marker = "## 🎬 Последний таймлапс"
-        
-        if timelapse_section_marker in content:
-            # Находим начало секции
-            start_pos = content.find(timelapse_section_marker)
-            # Находим конец секции (следующий заголовок или конец файла)
-            next_section = content.find("\n## ", start_pos + 1)
-            
-            if next_section == -1:
-                # Если это последняя секция, заменяем до конца файла
-                new_content = content[:start_pos] + f"{timelapse_section_marker}\n\n{video_link}\n\n"
-            else:
-                # Заменяем секцию
-                new_content = content[:start_pos] + f"{timelapse_section_marker}\n\n{video_preview}\n" + content[next_section:]
-        else:
-            # Добавляем новую секцию в начало файла после заголовка
-            lines = content.split('\n')
-            
-            # Находим первую строку, которая не является заголовком проекта
-            insert_pos = 0
-            for i, line in enumerate(lines):
-                if line.startswith('# ') and i == 0:
-                    continue
-                if line.strip() == '':
-                    continue
-                insert_pos = i
-                break
-            
-            # Вставляем секцию
-            lines.insert(insert_pos, f"{timelapse_section_marker}\n")
-            lines.insert(insert_pos + 1, video_preview)
-            new_content = '\n'.join(lines)
-        
-        # Записываем обновленный README
-        with open(readme_path, 'w', encoding='utf-8') as f:
-            f.write(new_content)
-        
-        logger.info(f"README.md обновлен со ссылкой на таймлапс: {video_link}")
-        
-    except Exception as e:
-        logger.error(f"Ошибка при обновлении README.md: {e}")
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Создание видео-таймлапса из изображений за день")

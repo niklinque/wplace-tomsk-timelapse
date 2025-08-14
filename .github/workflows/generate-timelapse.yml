@@ -108,7 +108,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Add timelapse for ${{ steps.dates.outputs.date }} (square video)"
+            git commit -m "Таймлапс за ${{ steps.dates.outputs.date }}"
             git push
           fi
 
