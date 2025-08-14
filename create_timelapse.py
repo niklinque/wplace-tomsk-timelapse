@@ -248,7 +248,8 @@ def send_to_telegram(video_path, date_str):
             data = {
                 'chat_id': chat_id,
                 'caption': caption,
-                'parse_mode': 'Markdown'
+                'parse_mode': 'Markdown',
+                'disable_content_type_detection': True
             }
             
             logger.info(f"Отправляем видео в Telegram канал: {video_path}")
