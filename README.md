@@ -34,7 +34,7 @@ python create_timelapse.py --date 20250101
 Результат появится в `timelapse/timelapse_20250101.mp4` и дубликат `timelapse/latest.mp4`.
 
 ### Не синхронизировать `timelapse/` локально
-Чтобы к вам на не подтягивались большие видео при `git pull`, используйте sparse checkout и исключите каталог `timelapse/` из рабочей копии:
+Чтобы к вам не подтягивались большие видео при `git pull`, используйте sparse checkout и исключите каталог `timelapse/` из рабочей копии:
 ```bash
 git sparse-checkout init --no-cone
 git sparse-checkout set "/*" "!/timelapse/"
