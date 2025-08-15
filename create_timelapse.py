@@ -22,8 +22,8 @@ logger = logging.getLogger(__name__)
 # Константы
 OUTPUT_DIR = "output"
 TIMELAPSE_DIR = "timelapse"
-VIDEO_WIDTH = 9000
-VIDEO_HEIGHT = 9000
+VIDEO_WIDTH = 3000
+VIDEO_HEIGHT = 3000
 FPS = 9
 BACKGROUND_COLOR = (255, 255, 255)  # Белый фон
 TOMSK_TZ = timezone(timedelta(hours=7))
@@ -80,18 +80,31 @@ def resize_image_to_fit(image, target_width, target_height, background_color=(25
     if img_width == target_width and img_height == target_height:
         return image, (0, 0, target_width, target_height)
 
-    # Вычисляем коэффициент масштабирования для сохранения пропорций
+    # Если исходный размер уже совпадает с целевым, возвращаем без пересэмплинга
     img_width, img_height = image.size
+    if img_width == target_width and img_height == target_height:
+        if image.mode == 'RGBA':
+            composed = Image.new('RGB', (target_width, target_height), background_color)
+            composed.paste(image, (0, 0), image)
+            return composed, (0, 0, target_width, target_height)
+        return image.convert('RGB'), (0, 0, target_width, target_height)
+
+    # Вычисляем коэффициент масштабирования для сохранения пропорций
     scale_w = target_width / img_width
     scale_h = target_height / img_height
     scale = min(scale_w, scale_h)
-    
+
     # Новые размеры с сохранением пропорций
     new_width = int(img_width * scale)
     new_height = int(img_height * scale)
-    
+
+    # Выбираем метод ресайза: для кратного масштабирования используем NEAREST (пиксель-перфект)
+    down_int = (img_width % target_width == 0) and (img_height % target_height == 0)
+    up_int = (target_width % img_width == 0) and (target_height % img_height == 0)
+    resample = Image.NEAREST if (down_int or up_int) else Image.Resampling.LANCZOS
+
     # Изменяем размер изображения
-    resized_image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+    resized_image = image.resize((new_width, new_height), resample)
     
     # Создаем новое изображение с белым фоном
     result = Image.new('RGB', (target_width, target_height), background_color)
