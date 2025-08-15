@@ -323,15 +323,16 @@ def main():
     if success:
         logger.info(f"Таймлапс успешно создан: {output_path}")
         
-        # Также создаем ссылку на последний таймлапс
-        latest_path = os.path.join(TIMELAPSE_DIR, "latest.mp4")
-        if os.path.exists(latest_path):
-            os.remove(latest_path)
-        
-        # Создаем копию как latest.mp4
-        import shutil
-        shutil.copy2(output_path, latest_path)
-        logger.info(f"Создана копия как: {latest_path}")
+        # Также создаем ссылку на последний таймлапс (если не отключено)
+        if not os.getenv('SKIP_LATEST_COPY'):
+            latest_path = os.path.join(TIMELAPSE_DIR, "latest.mp4")
+            if os.path.exists(latest_path):
+                os.remove(latest_path)
+            
+            # Создаем копию как latest.mp4
+            import shutil
+            shutil.copy2(output_path, latest_path)
+            logger.info(f"Создана копия как: {latest_path}")
         
         # Отправляем видео в Telegram канал
         telegram_success = send_to_telegram(output_path, date_str)

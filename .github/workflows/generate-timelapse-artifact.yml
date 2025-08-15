@@ -104,6 +104,8 @@ jobs:
       - name: Create timelapse
         id: make
         shell: bash
+        env:
+          SKIP_LATEST_COPY: "1"
         run: |
           set -e
           if [ "${{ steps.dates.outputs.date }}" = "" ]; then
@@ -121,9 +123,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: timelapse-${{ steps.dates.outputs.date }}
-          path: |
-            timelapse/timelapse_${{ steps.dates.outputs.date }}.mp4
-            timelapse/latest.mp4
+          path: timelapse/timelapse_${{ steps.dates.outputs.date }}.mp4
           if-no-files-found: error
 
 
