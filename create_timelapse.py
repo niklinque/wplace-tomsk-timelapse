@@ -22,9 +22,9 @@ logger = logging.getLogger(__name__)
 # Константы
 OUTPUT_DIR = "output"
 TIMELAPSE_DIR = "timelapse"
-VIDEO_WIDTH = 1080
-VIDEO_HEIGHT = 1080
-FPS = 30  # 30 кадров в секунду
+VIDEO_WIDTH = 9000
+VIDEO_HEIGHT = 9000
+FPS = 9
 BACKGROUND_COLOR = (255, 255, 255)  # Белый фон
 TOMSK_TZ = timezone(timedelta(hours=7))
 
@@ -75,6 +75,11 @@ def resize_image_to_fit(image, target_width, target_height, background_color=(25
     Returns:
         tuple: (PIL.Image, (x, y, new_width, new_height)) — изображение и позиция/размер вставленного контента
     """
+    # Если изображение уже совпадает с целевым размером, не масштабируем
+    img_width, img_height = image.size
+    if img_width == target_width and img_height == target_height:
+        return image, (0, 0, target_width, target_height)
+
     # Вычисляем коэффициент масштабирования для сохранения пропорций
     img_width, img_height = image.size
     scale_w = target_width / img_width
