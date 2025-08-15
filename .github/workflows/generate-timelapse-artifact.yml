@@ -2,6 +2,11 @@ name: Generate timelapse artifact
 
 on:
   workflow_dispatch:
+    inputs:
+      date:
+        description: 'Дата в формате YYYYMMDD (Томск). Оставьте пустым для вчерашнего дня'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -33,16 +38,31 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Compute yesterday date (Tomsk)
+      - name: Compute target date (Tomsk)
         id: dates
         shell: bash
+        env:
+          REQUESTED_DATE: ${{ github.event.inputs.date }}
         run: |
           python - << 'PY'
           from datetime import datetime, timedelta, timezone
           import os
+          val = (os.environ.get('REQUESTED_DATE') or '').strip()
           tomsk = timezone(timedelta(hours=7))
-          y = datetime.now(tomsk) - timedelta(days=1)
-          out = f"date={y.strftime('%Y%m%d')}\n"
+          def is_valid(s: str) -> bool:
+              if len(s) != 8 or not s.isdigit():
+                  return False
+              try:
+                  datetime.strptime(s, '%Y%m%d')
+                  return True
+              except Exception:
+                  return False
+          if is_valid(val):
+              target = val
+          else:
+              y = datetime.now(tomsk) - timedelta(days=1)
+              target = y.strftime('%Y%m%d')
+          out = f"date={target}\n"
           with open(os.environ['GITHUB_OUTPUT'], 'w', encoding='utf-8') as f:
               f.write(out)
           PY
@@ -54,7 +74,7 @@ jobs:
           path: output/${{ steps.dates.outputs.date }}
           key: dumps-${{ steps.dates.outputs.date }}
 
-      - name: Sparse checkout yesterday folder from source repo
+      - name: Sparse checkout selected date folder from source repo
         shell: bash
         run: |
           set -e
