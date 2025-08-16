@@ -50,6 +50,8 @@ jobs:
       - name: Get TDLib source
         if: steps.cache-tdlib.outputs.cache-hit != 'true'
         run: |
+          # Очищаем папку если она существует
+          rm -rf tdlib-source
           # Клонируем репозиторий TDLib с конкретной версией
           git clone --recursive https://github.com/tdlib/td.git tdlib-source
           cd tdlib-source
@@ -62,6 +64,8 @@ jobs:
       - name: Build Telegram Bot API server
         if: steps.cache-bot-api.outputs.cache-hit != 'true'
         run: |
+          # Очищаем папку если она существует
+          rm -rf telegram-bot-api
           # Клонируем репозиторий Bot API с конкретной версией
           git clone --recursive https://github.com/tdlib/telegram-bot-api.git
           cd telegram-bot-api
