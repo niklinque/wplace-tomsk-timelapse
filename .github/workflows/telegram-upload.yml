@@ -20,38 +20,80 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Cache apt packages
+        id: cache-apt
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: apt-packages-${{ runner.os }}-${{ hashFiles('**/telegram-upload.yml') }}
+          restore-keys: |
+            apt-packages-${{ runner.os }}-
+
+      - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget unzip
+          sudo apt-get install -y make git zlib1g-dev libssl-dev gperf cmake g++
+
+      - name: Cache TDLib source
+        id: cache-tdlib
+        uses: actions/cache@v4
+        with:
+          path: tdlib-source
+          key: tdlib-source-${{ runner.os }}-latest
+          restore-keys: |
+            tdlib-source-${{ runner.os }}-
 
       - name: Cache Telegram Bot API server
         id: cache-bot-api
         uses: actions/cache@v4
         with:
           path: telegram-bot-api
-          key: telegram-bot-api-${{ runner.os }}-latest
+          key: telegram-bot-api-${{ runner.os }}-built
           restore-keys: |
             telegram-bot-api-${{ runner.os }}-
 
-      - name: Download and setup Telegram Bot API server
+      - name: Get TDLib source
+        if: steps.cache-tdlib.outputs.cache-hit != 'true'
+        run: |
+          # Клонируем репозиторий TDLib
+          git clone --recursive https://github.com/tdlib/td.git tdlib-source
+          # Очищаем git history для кэширования
+          rm -rf tdlib-source/.git
+
+      - name: Build Telegram Bot API server
         if: steps.cache-bot-api.outputs.cache-hit != 'true'
         run: |
-          # Скачиваем официальный локальный Bot API сервер
-          wget https://github.com/tdlib/telegram-bot-api/releases/latest/download/telegram-bot-api-linux.zip
-          unzip telegram-bot-api-linux.zip
-          rm telegram-bot-api-linux.zip
+          # Клонируем репозиторий Bot API
+          git clone --recursive https://github.com/tdlib/telegram-bot-api.git
+          cd telegram-bot-api
+          
+          # Создаем и переходим в build директорию
+          rm -rf build
+          mkdir build
+          cd build
+          
+          # Конфигурируем и собираем (используем кэшированные исходники TDLib)
+          cmake -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_INSTALL_PREFIX:PATH=.. \
+                -DTD_DIR=../../tdlib-source \
+                ..
+          cmake --build . --target install
+          
+          # Возвращаемся в корень
+          cd ../..
+          
+          # Проверяем что бинарник создался
+          ls -l telegram-bot-api/bin/telegram-bot-api*
 
       - name: Setup Bot API server
         run: |
-          chmod +x telegram-bot-api
           # Создаем директорию для данных
           mkdir -p bot-data
 
       - name: Start local Bot API server
         run: |
           # Запускаем локальный сервер в фоне
-          ./telegram-bot-api --api-id=${{ secrets.TELEGRAM_API_ID }} \
+          ./telegram-bot-api/bin/telegram-bot-api --api-id=${{ secrets.TELEGRAM_API_ID }} \
                             --api-hash=${{ secrets.TELEGRAM_API_HASH }} \
                             --local \
                             --dir=./bot-data \
