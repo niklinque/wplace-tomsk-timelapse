@@ -54,5 +54,4 @@ git sparse-checkout set "/*"
 - `.github/workflows/generate-timelapse.yml` — ежедневный воркфлоу.
 - `.github/workflows/generate-timelapse-artifat.yml` — воркфлоу для выгрузки в артефакт таймлапса из любого дня доступного в репозитории с дампами.
 - `.github/workflows/telegram-upload.yml` — отправка больших видео в Telegram через локальный Bot API сервер.
-- `TELEGRAM_SETUP.md` — инструкции по настройке Telegram Bot для больших файлов.
 
