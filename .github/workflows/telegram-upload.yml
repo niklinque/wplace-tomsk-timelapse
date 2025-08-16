@@ -34,7 +34,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: tdlib-source
-          key: tdlib-source-${{ runner.os }}-v1.8.0
+          key: tdlib-source-${{ runner.os }}-latest
           restore-keys: |
             tdlib-source-${{ runner.os }}-
 
@@ -43,7 +43,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: telegram-bot-api
-          key: telegram-bot-api-${{ runner.os }}-latest
+          key: telegram-bot-api-${{ runner.os }}-built
           restore-keys: |
             telegram-bot-api-${{ runner.os }}-
 
