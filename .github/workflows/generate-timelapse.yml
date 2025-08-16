@@ -5,9 +5,10 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
-  build:
+  timelapse:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
