@@ -7,6 +7,7 @@
 
 ### Как это работает
 - **Ежедневно** запускается GitHub Actions, считает «вчера» по часовому поясу Томска (UTC+7), забирает дампы выборочно (sparse checkout) из `niklinque/wplace-tomsk/output/YYYMMDD` и генерирует квадратное видео 3000*3000 с меткой времени по центру снизу.
+- **Автоматическая отправка в Telegram** через локальный Bot API сервер, поддерживающий файлы до 2GB (вместо стандартных 50MB).
 
 ### Запуск локально
 1) Установить зависимости:
@@ -52,4 +53,6 @@ git sparse-checkout set "/*"
 - `timelapse/timelapse_YYYYMMDD.mp4` — готовый таймлапс за день, `timelapse/latest.mp4` — копия последнего.
 - `.github/workflows/generate-timelapse.yml` — ежедневный воркфлоу.
 - `.github/workflows/generate-timelapse-artifat.yml` — воркфлоу для выгрузки в артефакт таймлапса из любого дня доступного в репозитории с дампами.
+- `.github/workflows/telegram-upload.yml` — отправка больших видео в Telegram через локальный Bot API сервер.
+- `TELEGRAM_SETUP.md` — инструкции по настройке Telegram Bot для больших файлов.
 

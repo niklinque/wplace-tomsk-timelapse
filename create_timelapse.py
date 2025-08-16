@@ -93,7 +93,7 @@ def resize_image_to_fit(image, target_width, target_height, background_color=(25
     scale_w = target_width / img_width
     scale_h = target_height / img_height
     scale = min(scale_w, scale_h)
-
+    
     # Новые размеры с сохранением пропорций
     new_width = int(img_width * scale)
     new_height = int(img_height * scale)
@@ -102,7 +102,7 @@ def resize_image_to_fit(image, target_width, target_height, background_color=(25
     down_int = (img_width % target_width == 0) and (img_height % target_height == 0)
     up_int = (target_width % img_width == 0) and (target_height % img_height == 0)
     resample = Image.NEAREST if (down_int or up_int) else Image.Resampling.LANCZOS
-
+    
     # Изменяем размер изображения
     resized_image = image.resize((new_width, new_height), resample)
     
@@ -221,69 +221,6 @@ def create_timelapse_video(images, output_path):
         logger.error(f"Ошибка при создании видео: {e}")
         return False
 
-def send_to_telegram(video_path, date_str):
-    """
-    Отправляет видео файл в Telegram канал.
-    
-    Args:
-        video_path (str): Путь к видео файлу
-        date_str (str): Дата в формате YYYYMMDD
-        
-    Returns:
-        bool: True если успешно отправлено, False в случае ошибки
-    """
-    # Получаем токен бота и ID канала из переменных окружения
-    bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
-    chat_id = os.getenv('TELEGRAM_CHAT_ID')
-    
-    if not bot_token or not chat_id:
-        logger.warning("Telegram токен или ID канала не настроены. Пропускаем отправку в Telegram.")
-        return False
-    
-    if not os.path.exists(video_path):
-        logger.error(f"Видео файл не найден: {video_path}")
-        return False
-    
-    try:
-        # Форматируем дату для подписи
-        date_obj = datetime.strptime(date_str, "%Y%m%d")
-        formatted_date = date_obj.strftime("%d%m%Y")
-        
-        # Создаем подпись
-        caption = f"""🤖 Ежедневный таймлапс за {formatted_date}
-
-[🎬 Репозиторий с автоматизироваными таймлапсами](https://github.com/niklinque/wplace-tomsk-timelapse/)
-[📸 Репозиторий с дампами](https://github.com/niklinque/wplace-tomsk/)"""
-        
-        # URL для отправки документа
-        url = f"https://api.telegram.org/bot{bot_token}/sendDocument"
-        
-        # Открываем файл и отправляем как документ с принудительным именем файла
-        with open(video_path, 'rb') as video_file:
-            # Принудительно указываем расширение .mp4 для отправки как файла
-            filename = f"timelapse_{formatted_date}.mp4"
-            files = {'document': (filename, video_file, 'application/octet-stream')}
-            data = {
-                'chat_id': chat_id,
-                'caption': caption,
-                'parse_mode': 'Markdown',
-                'disable_content_type_detection': True
-            }
-            
-            logger.info(f"Отправляем видео в Telegram канал: {video_path}")
-            response = requests.post(url, files=files, data=data, timeout=300)
-            
-            if response.status_code == 200:
-                logger.info("Видео успешно отправлено в Telegram канал")
-                return True
-            else:
-                logger.error(f"Ошибка при отправке в Telegram: {response.status_code}, {response.text}")
-                return False
-                
-    except Exception as e:
-        logger.error(f"Ошибка при отправке в Telegram: {e}")
-        return False
-
 def parse_args():
     parser = argparse.ArgumentParser(description="Создание видео-таймлапса из изображений за день")
     parser.add_argument("--date", dest="date_str", help="Дата в формате YYYYMMDD. По умолчанию — вчера (Томск)")
@@ -334,13 +271,6 @@ def main():
             shutil.copy2(output_path, latest_path)
             logger.info(f"Создана копия как: {latest_path}")
         
-        # Отправляем видео в Telegram канал
-        telegram_success = send_to_telegram(output_path, date_str)
-        if telegram_success:
-            logger.info("Видео успешно отправлено в Telegram")
-        else:
-            logger.warning("Не удалось отправить видео в Telegram")
-
         return True
     else:
         logger.error("Не удалось создать таймлапс")

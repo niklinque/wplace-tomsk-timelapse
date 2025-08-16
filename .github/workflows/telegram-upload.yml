@@ -1,0 +1,104 @@
+name: Upload to Telegram with Local Bot API
+
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Date in YYYYMMDD format'
+        required: true
+        type: string
+      message:
+        description: 'Optional message'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget unzip
+
+      - name: Cache Telegram Bot API server
+        id: cache-bot-api
+        uses: actions/cache@v4
+        with:
+          path: telegram-bot-api
+          key: telegram-bot-api-${{ runner.os }}-latest
+          restore-keys: |
+            telegram-bot-api-${{ runner.os }}-
+
+      - name: Download and setup Telegram Bot API server
+        if: steps.cache-bot-api.outputs.cache-hit != 'true'
+        run: |
+          # Скачиваем официальный локальный Bot API сервер
+          wget https://github.com/tdlib/telegram-bot-api/releases/latest/download/telegram-bot-api-linux.zip
+          unzip telegram-bot-api-linux.zip
+          rm telegram-bot-api-linux.zip
+
+      - name: Setup Bot API server
+        run: |
+          chmod +x telegram-bot-api
+          # Создаем директорию для данных
+          mkdir -p bot-data
+
+      - name: Start local Bot API server
+        run: |
+          # Запускаем локальный сервер в фоне
+          ./telegram-bot-api --api-id=${{ secrets.TELEGRAM_API_ID }} \
+                            --api-hash=${{ secrets.TELEGRAM_API_HASH }} \
+                            --local \
+                            --dir=./bot-data \
+                            --temp-dir=./bot-data/temp \
+                            --http-port=8081 &
+          
+          # Ждем пока сервер запустится
+          sleep 10
+          
+          # Проверяем что сервер работает
+          curl -f http://localhost:8081/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/getMe || exit 1
+
+      - name: Check if timelapse exists
+        id: check
+        run: |
+          if [ -f "timelapse/timelapse_${{ github.event.inputs.date }}.mp4" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "file_size=$(stat -f%z timelapse/timelapse_${{ github.event.inputs.date }}.mp4 2>/dev/null || stat -c%s timelapse/timelapse_${{ github.event.inputs.date }}.mp4)" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload to Telegram
+        if: steps.check.outputs.exists == 'true'
+        run: |
+          VIDEO_FILE="timelapse/timelapse_${{ github.event.inputs.date }}.mp4"
+          FILE_SIZE="${{ steps.check.outputs.file_size }}"
+          
+          # Форматируем дату для сообщения
+          FORMATTED_DATE=$(echo "${{ github.event.inputs.date }}" | sed 's/\(.\{4\}\)\(.\{2\}\)\(.\{2\}\)/\1-\2-\3/')
+          
+          # Основное сообщение
+          MESSAGE="🤖 Ежедневный таймлапс за ${FORMATTED_DATE}\n\n
+            [🎬 Репозиторий с автоматизироваными таймлапсами](https://github.com/niklinque/wplace-tomsk-timelapse/)
+            [📸 Репозиторий с дампами](https://github.com/niklinque/wplace-tomsk/)"
+          if [ -n "${{ github.event.inputs.message }}" ]; then
+            MESSAGE="${MESSAGE}\n\n${{ github.event.inputs.message }}"
+          fi
+          MESSAGE="${MESSAGE}\n\n📊 Размер файла: $(numfmt --to=iec ${FILE_SIZE})"
+          
+          # Отправляем через локальный API (поддерживает файлы до 2GB)
+          curl -X POST "http://localhost:8081/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendVideo" \
+               -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+               -F "video=@${VIDEO_FILE}" \
+               -F "caption=${MESSAGE}" \
+               -F "parse_mode=MARKDOWN" \
+               -F "supports_streaming=true" \
+               --max-time 1800 \
+               --retry 3 \
+               --retry-delay 30

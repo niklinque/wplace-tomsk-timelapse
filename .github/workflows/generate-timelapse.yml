@@ -113,4 +113,21 @@ jobs:
             git push
           fi
 
+      - name: Trigger Telegram upload
+        if: steps.make.outputs.skip != 'true' && secrets.TELEGRAM_BOT_TOKEN != ''
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'telegram-upload.yml',
+              ref: 'main',
+              inputs: {
+                date: '${{ steps.dates.outputs.date }}',
+                message: 'Автоматически сгенерирован ежедневным воркфлоу'
+              }
+            });
+
 
