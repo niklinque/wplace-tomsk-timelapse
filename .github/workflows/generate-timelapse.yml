@@ -134,8 +134,7 @@ jobs:
               workflow_id: 'telegram-upload.yml',
               ref: 'main',
               inputs: {
-                date: '${{ steps.dates.outputs.date }}',
-                message: 'Автоматически сгенерирован ежедневным воркфлоу'
+                date: '${{ steps.dates.outputs.date }}'
               }
             });
 

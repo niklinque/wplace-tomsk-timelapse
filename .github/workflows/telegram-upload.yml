@@ -7,11 +7,6 @@ on:
         description: 'Date in YYYYMMDD format'
         required: true
         type: string
-      message:
-        description: 'Optional message'
-        required: false
-        type: string
-        default: ''
 
 jobs:
   upload:
@@ -39,7 +34,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: tdlib-source
-          key: tdlib-source-${{ runner.os }}-latest
+          key: tdlib-source-${{ runner.os }}-v1.8.0
           restore-keys: |
             tdlib-source-${{ runner.os }}-
 
@@ -48,24 +43,30 @@ jobs:
         uses: actions/cache@v4
         with:
           path: telegram-bot-api
-          key: telegram-bot-api-${{ runner.os }}-built
+          key: telegram-bot-api-${{ runner.os }}-v6.7.0
           restore-keys: |
             telegram-bot-api-${{ runner.os }}-
 
       - name: Get TDLib source
         if: steps.cache-tdlib.outputs.cache-hit != 'true'
         run: |
-          # Клонируем репозиторий TDLib
+          # Клонируем репозиторий TDLib с конкретной версией
           git clone --recursive https://github.com/tdlib/td.git tdlib-source
+          cd tdlib-source
+          # Переключаемся на стабильную версию
+          git checkout v1.8.0
           # Очищаем git history для кэширования
-          rm -rf tdlib-source/.git
+          rm -rf .git
+          cd ..
 
       - name: Build Telegram Bot API server
         if: steps.cache-bot-api.outputs.cache-hit != 'true'
         run: |
-          # Клонируем репозиторий Bot API
+          # Клонируем репозиторий Bot API с конкретной версией
           git clone --recursive https://github.com/tdlib/telegram-bot-api.git
           cd telegram-bot-api
+          # Переключаемся на стабильную версию
+          git checkout v6.7.0
           
           # Создаем и переходим в build директорию
           rm -rf build
@@ -126,21 +127,15 @@ jobs:
           FORMATTED_DATE=$(echo "${{ github.event.inputs.date }}" | sed 's/\(.\{4\}\)\(.\{2\}\)\(.\{2\}\)/\1-\2-\3/')
           
           # Основное сообщение
-          MESSAGE="🤖 Ежедневный таймлапс за ${FORMATTED_DATE}\n\n
-            [🎬 Репозиторий с автоматизироваными таймлапсами](https://github.com/niklinque/wplace-tomsk-timelapse/)
-            [📸 Репозиторий с дампами](https://github.com/niklinque/wplace-tomsk/)"
-          if [ -n "${{ github.event.inputs.message }}" ]; then
-            MESSAGE="${MESSAGE}\n\n${{ github.event.inputs.message }}"
-          fi
-          MESSAGE="${MESSAGE}\n\n📊 Размер файла: $(numfmt --to=iec ${FILE_SIZE})"
+          MESSAGE="🤖 Ежедневный таймлапс за ${FORMATTED_DATE}\n\n[🎬 Репозиторий с автоматизироваными таймлапсами](https://github.com/niklinque/wplace-tomsk-timelapse/)\n[📸 Репозиторий с дампами](https://github.com/niklinque/wplace-tomsk/)\n\n📊 Размер файла: $(numfmt --to=iec ${FILE_SIZE})"
           
           # Отправляем через локальный API (поддерживает файлы до 2GB)
-          curl -X POST "http://localhost:8081/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendVideo" \
+          curl -X POST "http://localhost:8081/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
                -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
                -F "video=@${VIDEO_FILE}" \
                -F "caption=${MESSAGE}" \
                -F "parse_mode=MARKDOWN" \
-               -F "supports_streaming=true" \
+               -F "disable_content_type_detection=true" \
                --max-time 1800 \
                --retry 3 \
                --retry-delay 30
