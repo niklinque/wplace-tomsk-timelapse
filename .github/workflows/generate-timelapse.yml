@@ -113,8 +113,17 @@ jobs:
             git push
           fi
 
+      - name: Check Telegram token
+        id: check-token
+        run: |
+          if [ -n "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]; then
+            echo "has_token=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_token=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Trigger Telegram upload
-        if: steps.make.outputs.skip != 'true' && secrets.TELEGRAM_BOT_TOKEN != ''
+        if: steps.make.outputs.skip != 'true' && steps.check-token.outputs.has_token == 'true'
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
