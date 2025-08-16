@@ -164,7 +164,6 @@ jobs:
         if: steps.check.outputs.exists == 'true'
         run: |
           VIDEO_FILE="timelapse/timelapse_${{ github.event.inputs.date }}.mp4"
-          FILE_SIZE="${{ steps.check.outputs.file_size }}"
           
           # Форматируем дату для сообщения
           FORMATTED_DATE=$(echo "${{ github.event.inputs.date }}" | sed 's/\(.\{4\}\)\(.\{2\}\)\(.\{2\}\)/\1-\2-\3/')
