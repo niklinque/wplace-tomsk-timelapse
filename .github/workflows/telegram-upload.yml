@@ -177,7 +177,7 @@ jobs:
                -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
                -F "document=@${VIDEO_FILE}" \
                -F "caption=${MESSAGE}" \
-               -F "parse_mode=Markdown" \
+               -F "parse_mode=MARKDOWN" \
                -F "disable_content_type_detection=true" \
                --max-time 1800 \
                --retry 3 \

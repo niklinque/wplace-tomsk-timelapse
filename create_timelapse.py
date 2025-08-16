@@ -237,9 +237,9 @@ def main():
     if args.date_str:
         date_str = args.date_str
     else:
-        # Получаем вчерашнюю дату (так как скрипт обычно запускается на следующий день)
-        yesterday = datetime.now(TOMSK_TZ) - timedelta(days=1)
-        date_str = yesterday.strftime("%Y%m%d")
+    # Получаем вчерашнюю дату (так как скрипт обычно запускается на следующий день)
+    yesterday = datetime.now(TOMSK_TZ) - timedelta(days=1)
+    date_str = yesterday.strftime("%Y%m%d")
     
     logger.info(f"Создаю таймлапс за {date_str}")
     
@@ -262,14 +262,14 @@ def main():
         
         # Также создаем ссылку на последний таймлапс (если не отключено)
         if not os.getenv('SKIP_LATEST_COPY'):
-            latest_path = os.path.join(TIMELAPSE_DIR, "latest.mp4")
-            if os.path.exists(latest_path):
-                os.remove(latest_path)
-            
-            # Создаем копию как latest.mp4
-            import shutil
-            shutil.copy2(output_path, latest_path)
-            logger.info(f"Создана копия как: {latest_path}")
+        latest_path = os.path.join(TIMELAPSE_DIR, "latest.mp4")
+        if os.path.exists(latest_path):
+            os.remove(latest_path)
+        
+        # Создаем копию как latest.mp4
+        import shutil
+        shutil.copy2(output_path, latest_path)
+        logger.info(f"Создана копия как: {latest_path}")
         
         return True
     else:
