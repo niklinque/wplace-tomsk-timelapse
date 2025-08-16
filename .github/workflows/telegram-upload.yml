@@ -170,7 +170,7 @@ jobs:
           FORMATTED_DATE=$(echo "${{ github.event.inputs.date }}" | sed 's/\(.\{4\}\)\(.\{2\}\)\(.\{2\}\)/\1-\2-\3/')
           
           # Основное сообщение
-          MESSAGE="🤖 Ежедневный таймлапс за ${FORMATTED_DATE}\n\n[🎬 Репозиторий с автоматизироваными таймлапсами](https://github.com/niklinque/wplace-tomsk-timelapse/)\n[📸 Репозиторий с дампами](https://github.com/niklinque/wplace-tomsk/)\n\n📊 Размер файла: $(numfmt --to=iec ${FILE_SIZE})"
+          MESSAGE="🤖 Ежедневный таймлапс за ${FORMATTED_DATE}/n/n[🎬 Репозиторий с автоматизироваными таймлапсами](https://github.com/niklinque/wplace-tomsk-timelapse/)/n[📸 Репозиторий с дампами](https://github.com/niklinque/wplace-tomsk/)"
           
           # Отправляем через локальный API как документ (поддерживает файлы до 2GB)
           curl -X POST "http://localhost:8081/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
