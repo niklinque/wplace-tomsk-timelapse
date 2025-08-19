@@ -263,13 +263,13 @@ def main():
         # Также создаем ссылку на последний таймлапс (если не отключено)
         if not os.getenv('SKIP_LATEST_COPY'):
             latest_path = os.path.join(TIMELAPSE_DIR, "latest.mp4")
-        if os.path.exists(latest_path):
-            os.remove(latest_path)
-        
-        # Создаем копию как latest.mp4
-        import shutil
-        shutil.copy2(output_path, latest_path)
-        logger.info(f"Создана копия как: {latest_path}")
+            if os.path.exists(latest_path):
+                os.remove(latest_path)
+            
+            # Создаем копию как latest.mp4
+            import shutil
+            shutil.copy2(output_path, latest_path)
+            logger.info(f"Создана копия как: {latest_path}")
         
         return True
     else:
