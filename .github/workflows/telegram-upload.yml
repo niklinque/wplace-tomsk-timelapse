@@ -8,12 +8,31 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   upload:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Download timelapse from Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          DATE='${{ github.event.inputs.date }}'
+          TAG="timelapse-${DATE}"
+          mkdir -p timelapse
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Found release $TAG, downloading asset"
+            gh release download "$TAG" --pattern "timelapse_${DATE}.mp4" --dir timelapse --clobber
+          else
+            echo "❌ Release $TAG not found"
+            exit 1
+          fi
 
       - name: Cache apt packages
         id: cache-apt

@@ -85,9 +85,6 @@ jobs:
       - name: Create timelapse
         id: make
         shell: bash
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           set -e
           if [ "${{ steps.dates.outputs.date }}" = "" ]; then
@@ -100,18 +97,27 @@ jobs:
           fi
           python create_timelapse.py --date "${{ steps.dates.outputs.date }}"
 
-      - name: Commit and push timelapse
+      - name: Publish timelapse to GitHub Release
         if: steps.make.outputs.skip != 'true'
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add timelapse/
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
+          set -e
+          DATE='${{ steps.dates.outputs.date }}'
+          TAG="timelapse-${DATE}"
+          TITLE="Таймлапс за ${DATE}"
+          FILE="timelapse/timelapse_${DATE}.mp4"
+          if [ ! -f "$FILE" ]; then
+            echo "File not found: $FILE"
+            exit 1
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG exists, uploading asset (overwrite if exists)"
+            gh release upload "$TAG" "$FILE" --clobber
           else
-            git commit -m "Таймлапс за ${{ steps.dates.outputs.date }}"
-            git push
+            echo "Creating release $TAG and uploading asset"
+            gh release create "$TAG" "$FILE" --title "$TITLE" --latest=false --notes "Automated timelapse for ${DATE}"
           fi
 
       - name: Check Telegram token
