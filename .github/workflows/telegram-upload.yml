@@ -35,18 +35,10 @@ jobs:
           fi
 
       - name: Cache apt packages
-        id: cache-apt
-        uses: actions/cache@v4
+        uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          path: ~/.cache/apt
-          key: apt-packages-${{ runner.os }}-${{ hashFiles('**/telegram-upload.yml') }}
-          restore-keys: |
-            apt-packages-${{ runner.os }}-
-
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y make git zlib1g-dev libssl-dev gperf cmake g++
+          packages: make git zlib1g-dev libssl-dev gperf cmake g++
+          version: 1
 
       - name: Cache TDLib source
         id: cache-tdlib
