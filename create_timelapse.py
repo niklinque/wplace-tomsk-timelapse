@@ -75,10 +75,6 @@ def resize_image_to_fit(image, target_width, target_height, background_color=(25
     Returns:
         tuple: (PIL.Image, (x, y, new_width, new_height)) — изображение и позиция/размер вставленного контента
     """
-    # Если изображение уже совпадает с целевым размером, не масштабируем
-    img_width, img_height = image.size
-    if img_width == target_width and img_height == target_height:
-        return image, (0, 0, target_width, target_height)
 
     # Если исходный размер уже совпадает с целевым, возвращаем без пересэмплинга
     img_width, img_height = image.size
