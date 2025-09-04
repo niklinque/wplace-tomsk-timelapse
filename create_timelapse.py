@@ -266,6 +266,7 @@ def main():
     
     if success:
         logger.info(f"Таймлапс успешно создан: {output_path}")
+        return True
     else:
         logger.error("Не удалось создать таймлапс")
         return False
