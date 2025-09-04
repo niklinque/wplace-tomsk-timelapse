@@ -49,7 +49,11 @@ jobs:
           from zoneinfo import ZoneInfo
           import os
           val = (os.environ.get('REQUESTED_DATE') or '').strip()
-          TIMEZONE=$(grep '^TIMEZONE' config.py | cut -d '"' -f 2)
+          with open('config.py', 'r', encoding='utf-8') as f:
+            for line in f:
+              if line.strip().startswith('TIMEZONE'):
+                timezone_name = line.split('"')[1]
+                break
           target_tz = ZoneInfo(TIMEZONE)
           def is_valid(s: str) -> bool:
               if len(s) != 8 or not s.isdigit():
