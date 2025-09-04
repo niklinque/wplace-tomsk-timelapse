@@ -45,9 +45,9 @@ jobs:
           with open('config.py', 'r', encoding='utf-8') as f:
             for line in f:
               if line.strip().startswith('TIMEZONE'):
-                timezone_name = line.split('"')[1]
+                timezone = line.split('"')[1]
                 break
-          target_tz = ZoneInfo(TIMEZONE)
+          target_tz = ZoneInfo(timezone)
           y = datetime.now(target_tz) - timedelta(days=1)
           out = f"date={y.strftime('%Y%m%d')}\n"
           with open(os.environ['GITHUB_OUTPUT'], 'w', encoding='utf-8') as f:

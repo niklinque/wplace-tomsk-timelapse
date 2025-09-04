@@ -52,9 +52,9 @@ jobs:
           with open('config.py', 'r', encoding='utf-8') as f:
             for line in f:
               if line.strip().startswith('TIMEZONE'):
-                timezone_name = line.split('"')[1]
+                timezone = line.split('"')[1]
                 break
-          target_tz = ZoneInfo(TIMEZONE)
+          target_tz = ZoneInfo(timezone)
           def is_valid(s: str) -> bool:
               if len(s) != 8 or not s.isdigit():
                   return False
