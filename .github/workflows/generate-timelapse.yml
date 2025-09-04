@@ -42,13 +42,9 @@ jobs:
           from datetime import datetime, timedelta
           import os
           from zoneinfo import ZoneInfo
-          from config import *
-          
+          TIMEZONE=$(grep '^TIMEZONE' config.py | cut -d '"' -f 2)
           target_tz = ZoneInfo(TIMEZONE)
-          
-          # Вычисление вчерашней даты по заданному часовому поясу
           y = datetime.now(target_tz) - timedelta(days=1)
-
           out = f"date={y.strftime('%Y%m%d')}\n"
           with open(os.environ['GITHUB_OUTPUT'], 'w', encoding='utf-8') as f:
               f.write(out)
