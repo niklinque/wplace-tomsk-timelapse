@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       date:
-        description: 'Дата в формате YYYYMMDD (Томск). Оставьте пустым для вчерашнего дня'
+        description: 'Date in YYYYMMDD. Leave empty for yesterday.'
         required: false
         type: string
 
@@ -45,7 +45,7 @@ jobs:
           REQUESTED_DATE: ${{ github.event.inputs.date }}
         run: |
           python - << 'PY'
-          from datetime import datetime, timedelta, timezone
+          from datetime import datetime, timedelta
           from zoneinfo import ZoneInfo
           import os
           val = (os.environ.get('REQUESTED_DATE') or '').strip()

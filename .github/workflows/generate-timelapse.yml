@@ -54,13 +54,6 @@ jobs:
               f.write(out)
           PY
 
-      - name: Чтение часового пояса и вычисление вчерашней даты
-        id: set_timezone
-        run: |
-          TIMEZONE_VALUE=$(grep '^TIMEZONE' config.py | cut -d '"' -f 2)
-          echo "TZ=$TIMEZONE_VALUE" >> $GITHUB_ENV
-          echo "Timezone set to: $TIMEZONE_VALUE"
-
       - name: Restore dumps cache
         id: dumps-cache
         uses: actions/cache@v4
