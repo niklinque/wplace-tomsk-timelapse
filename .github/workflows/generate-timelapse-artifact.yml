@@ -38,7 +38,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Compute target date (Tomsk)
+      - name: Compute target date
         id: dates
         shell: bash
         env:
@@ -47,8 +47,9 @@ jobs:
           python - << 'PY'
           from datetime import datetime, timedelta, timezone
           import os
+          from config import *
           val = (os.environ.get('REQUESTED_DATE') or '').strip()
-          tomsk = timezone(timedelta(hours=7))
+          target_tz = ZoneInfo(TIMEZONE)
           def is_valid(s: str) -> bool:
               if len(s) != 8 or not s.isdigit():
                   return False
@@ -60,7 +61,7 @@ jobs:
           if is_valid(val):
               target = val
           else:
-              y = datetime.now(tomsk) - timedelta(days=1)
+              y = datetime.now(target_tz) - timedelta(days=1)
               target = y.strftime('%Y%m%d')
           out = f"date={target}\n"
           with open(os.environ['GITHUB_OUTPUT'], 'w', encoding='utf-8') as f:

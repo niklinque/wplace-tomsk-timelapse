@@ -34,19 +34,32 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Compute yesterday date (Tomsk)
+      - name: Compute yesterday date
         id: dates
         shell: bash
         run: |
           python - << 'PY'
-          from datetime import datetime, timedelta, timezone
+          from datetime import datetime, timedelta
           import os
-          tomsk = timezone(timedelta(hours=7))
-          y = datetime.now(tomsk) - timedelta(days=1)
+          from zoneinfo import ZoneInfo
+          from config import *
+          
+          target_tz = ZoneInfo(TIMEZONE)
+          
+          # Вычисление вчерашней даты по заданному часовому поясу
+          y = datetime.now(target_tz) - timedelta(days=1)
+
           out = f"date={y.strftime('%Y%m%d')}\n"
           with open(os.environ['GITHUB_OUTPUT'], 'w', encoding='utf-8') as f:
               f.write(out)
           PY
+
+      - name: Чтение часового пояса и вычисление вчерашней даты
+        id: set_timezone
+        run: |
+          TIMEZONE_VALUE=$(grep '^TIMEZONE' config.py | cut -d '"' -f 2)
+          echo "TZ=$TIMEZONE_VALUE" >> $GITHUB_ENV
+          echo "Timezone set to: $TIMEZONE_VALUE"
 
       - name: Restore dumps cache
         id: dumps-cache
