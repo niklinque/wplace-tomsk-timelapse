@@ -9,11 +9,12 @@ import glob
 import logging
 import sys
 import argparse
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from PIL import Image, ImageDraw
 import cv2
 import numpy as np
-import requests
+from config import *
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -22,11 +23,12 @@ logger = logging.getLogger(__name__)
 # Константы
 OUTPUT_DIR = "output"
 TIMELAPSE_DIR = "timelapse"
-VIDEO_WIDTH = 3000
-VIDEO_HEIGHT = 3000
-FPS = 9
-BACKGROUND_COLOR = (255, 255, 255)  # Белый фон
-TOMSK_TZ = timezone(timedelta(hours=7))
+
+try:
+    SCRIPT_TZ = ZoneInfo(TIMEZONE)
+except Exception:
+    logger.warning(f"Не удалось загрузить часовой пояс '{TIMEZONE}'. Используется UTC.")
+    SCRIPT_TZ = ZoneInfo("UTC")
 
 def get_images_for_date(date_str):
     """
@@ -58,56 +60,65 @@ def get_images_for_date(date_str):
         return filename
     
     images.sort(key=extract_timestamp_key)
+
+    if not images:
+        return [], 0, 0
+
+    # Получение размера выпускного видео из последнего дампа
+    image_size = Image.open(images[-1])
+    video_width, video_height = image_size.size
+
+    if SCALE != 1:
+        video_width = int(video_width * SCALE)
+        video_height = int(video_height * SCALE)
     
     logger.info(f"Всего найдено {len(images)} изображений за {date_str}")
-    return images
+    return images, video_width, video_height
 
-def resize_image_to_fit(image, target_width, target_height, background_color=(255, 255, 255)):
+def resize_image_to_fit(image, scale, width, height, background_color):
     """
-    Изменяет размер изображения с сохранением пропорций и добавляет белый фон.
+    Изменяет размер изображения с сохранением пропорций и добавляет фон.
     
     Args:
         image (PIL.Image): Исходное изображение
-        target_width (int): Целевая ширина
-        target_height (int): Целевая высота
+        scale (int): Коэффициент масштабирования
+        width (int): Ширина получаемого видео
+        height (int): Высота получаемого видео
         background_color (tuple): Цвет фона
         
     Returns:
         tuple: (PIL.Image, (x, y, new_width, new_height)) — изображение и позиция/размер вставленного контента
     """
 
-    # Если исходный размер уже совпадает с целевым, возвращаем без пересэмплинга
+    # Если исходный размер уже совпадает с целевым и размер не отличен от установленного, возвращаем без пересэмплинга
     img_width, img_height = image.size
-    if img_width == target_width and img_height == target_height:
+
+    if img_width == width and img_height == height:
         if image.mode == 'RGBA':
-            composed = Image.new('RGB', (target_width, target_height), background_color)
+            composed = Image.new('RGB', (width, height), background_color)
             composed.paste(image, (0, 0), image)
-            return composed, (0, 0, target_width, target_height)
-        return image.convert('RGB'), (0, 0, target_width, target_height)
-
-    # Вычисляем коэффициент масштабирования для сохранения пропорций
-    scale_w = target_width / img_width
-    scale_h = target_height / img_height
-    scale = min(scale_w, scale_h)
+            return composed, (0, 0, width, height)
+        return image.convert('RGB'), (0, 0, width, height)
     
-    # Новые размеры с сохранением пропорций
-    new_width = int(img_width * scale)
-    new_height = int(img_height * scale)
+    if scale != 1:
+        # Новые размеры с сохранением пропорций
+        new_width = int(img_width * scale)
+        new_height = int(img_height * scale)
 
-    # Выбираем метод ресайза: для кратного масштабирования используем NEAREST (пиксель-перфект)
-    down_int = (img_width % target_width == 0) and (img_height % target_height == 0)
-    up_int = (target_width % img_width == 0) and (target_height % img_height == 0)
-    resample = Image.NEAREST if (down_int or up_int) else Image.Resampling.LANCZOS
-    
-    # Изменяем размер изображения
-    resized_image = image.resize((new_width, new_height), resample)
+        # Выбираем метод ресайза: для кратного масштабирования используем NEAREST (пиксель-перфект)
+        down_int = (img_width % width == 0) and (img_height % height == 0)
+        up_int = (width % img_width == 0) and (height % img_height == 0)
+        resample = Image.NEAREST if (down_int or up_int) else Image.Resampling.LANCZOS
+        
+        # Изменяем размер изображения
+        resized_image = image.resize((new_width, new_height), resample)
     
     # Создаем новое изображение с белым фоном
-    result = Image.new('RGB', (target_width, target_height), background_color)
+    result = Image.new('RGB', (width, height), background_color)
     
     # Вычисляем позицию для центрирования
-    x = (target_width - new_width) // 2
-    y = (target_height - new_height) // 2
+    x = (width - new_width) // 2
+    y = (height - new_height) // 2
     
     # Вставляем изображение по центру
     if resized_image.mode == 'RGBA':
@@ -151,7 +162,7 @@ def add_timestamp_overlay(image, timestamp, font_size=36):
     composed = Image.alpha_composite(base, overlay).convert('RGB')
     return composed
 
-def create_timelapse_video(images, output_path):
+def create_timelapse_video(images, output_path, video_width, video_height):
     """
     Создает видео-таймлапс из списка изображений.
     
@@ -169,7 +180,7 @@ def create_timelapse_video(images, output_path):
     try:
         # Инициализируем видео writer
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        video_writer = cv2.VideoWriter(output_path, fourcc, FPS, (VIDEO_WIDTH, VIDEO_HEIGHT))
+        video_writer = cv2.VideoWriter(output_path, fourcc, FPS, (video_width, video_height))
         
         logger.info(f"Создаю видео с {len(images)} кадрами, FPS: {FPS}")
         
@@ -190,7 +201,7 @@ def create_timelapse_video(images, output_path):
                     timestamp = f"Кадр {i+1}"
                 
                 # Изменяем размер и добавляем на белый фон
-                resized_image, placement = resize_image_to_fit(pil_image, VIDEO_WIDTH, VIDEO_HEIGHT, BACKGROUND_COLOR)
+                resized_image, placement = resize_image_to_fit(pil_image, SCALE, video_width, video_height, BACKGROUND_COLOR)
                 
                 # Добавляем временную метку
                 final_image = add_timestamp_overlay(resized_image, timestamp)
@@ -234,13 +245,13 @@ def main():
         date_str = args.date_str
     else:
         # Получаем вчерашнюю дату (так как скрипт обычно запускается на следующий день)
-        yesterday = datetime.now(TOMSK_TZ) - timedelta(days=1)
+        yesterday = datetime.now(SCRIPT_TZ) - timedelta(days=1)
         date_str = yesterday.strftime("%Y%m%d")
     
     logger.info(f"Создаю таймлапс за {date_str}")
     
     # Получаем список изображений за день
-    images = get_images_for_date(date_str)
+    images, video_width, video_height = get_images_for_date(date_str)
     
     if not images:
         logger.warning(f"Не найдено изображений за {date_str}")
@@ -251,23 +262,10 @@ def main():
     output_path = os.path.join(TIMELAPSE_DIR, output_filename)
     
     # Создаем таймлапс
-    success = create_timelapse_video(images, output_path)
+    success = create_timelapse_video(images, output_path, video_width, video_height)
     
     if success:
         logger.info(f"Таймлапс успешно создан: {output_path}")
-        
-        # Также создаем ссылку на последний таймлапс (если не отключено)
-        if not os.getenv('SKIP_LATEST_COPY'):
-            latest_path = os.path.join(TIMELAPSE_DIR, "latest.mp4")
-            if os.path.exists(latest_path):
-                os.remove(latest_path)
-            
-            # Создаем копию как latest.mp4
-            import shutil
-            shutil.copy2(output_path, latest_path)
-            logger.info(f"Создана копия как: {latest_path}")
-        
-        return True
     else:
         logger.error("Не удалось создать таймлапс")
         return False
