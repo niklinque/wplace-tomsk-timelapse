@@ -86,11 +86,12 @@ jobs:
           set -e
           YDATE='${{ steps.dates.outputs.date }}'
           echo "Fetching dumps for ${YDATE}"
+          REPO=$(grep '^SOURCE_REPO' config.py | cut -d '"' -f 2)
           if [ -d "output/${YDATE}" ]; then
             echo "Already have cached dumps for ${YDATE}"
           else
             rm -rf tmp_wplace
-            git clone --filter=blob:none --no-checkout https://github.com/niklinque/wplace-tomsk.git tmp_wplace
+            git clone --filter=blob:none --no-checkout S{REPO}.git tmp_wplace
             cd tmp_wplace
             git sparse-checkout init --cone
             git sparse-checkout set output/${YDATE}

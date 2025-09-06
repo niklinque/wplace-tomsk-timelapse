@@ -4,3 +4,6 @@ SCALE = 1
 
 # --- ЧАСОВОЙ ПОЯС ---
 TIMEZONE = "Asia/Tomsk"
+
+# --- ИСТОЧНИК ДАМПОВ ---
+SOURCE_REPO = "https://github.com/niklinque/wplace-tomsk"
