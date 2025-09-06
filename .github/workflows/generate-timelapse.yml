@@ -34,6 +34,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Read config
+        id: read-config
+        run: |
+          UPLOAD_FLAG=$(grep -oP 'UPLOAD_TO_TELEGRAM\s*=\s*\K(True|False)' config.py | tr '[:upper:]' '[:lower:]')
+          echo "upload_to_telegram=${UPLOAD_FLAG}" >> $GITHUB_OUTPUT
+
       - name: Compute yesterday date
         id: dates
         shell: bash
@@ -126,7 +132,7 @@ jobs:
           fi
 
       - name: Trigger Telegram upload
-        if: steps.make.outputs.skip != 'true' && steps.check-token.outputs.has_token == 'true'
+        if: steps.make.outputs.skip != 'true' && steps.check-token.outputs.has_token == 'true' && steps.read-config.outputs.upload_to_telegram == 'true'
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}

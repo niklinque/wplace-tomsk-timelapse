@@ -1,6 +1,7 @@
 FPS = 9
 BACKGROUND_COLOR = (255, 255, 255)
 SCALE = 1
+UPLOAD_TO_TELEGRAM = True
 
 # --- ЧАСОВОЙ ПОЯС ---
 TIMEZONE = "Asia/Tomsk"
