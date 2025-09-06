@@ -62,7 +62,7 @@ jobs:
           echo "Fetching dumps for ${YDATE}"
           REPO=$(grep '^SOURCE_REPO' config.py | cut -d '"' -f 2)
           rm -rf tmp_wplace
-          git clone --filter=blob:none --no-checkout S{REPO}.git tmp_wplace
+          git clone --filter=blob:none --no-checkout ${REPO}.git tmp_wplace
           cd tmp_wplace
           git sparse-checkout init --cone
           git sparse-checkout set output/${YDATE}
