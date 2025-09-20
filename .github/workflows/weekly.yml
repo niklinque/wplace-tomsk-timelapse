@@ -1,0 +1,229 @@
+name: Generate weekly timelapse
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  generate_weekly_timelapse:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        days_back: [1, 2, 3, 4, 5, 6, 7]
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+					
+			- name: Read config
+        id: read-config
+        run: |
+          UPLOAD_FLAG=$(grep -oP 'UPLOAD_TO_TELEGRAM\s*=\s*\K(True|False)' config.py | tr '[:upper:]' '[:lower:]')
+          echo "upload_to_telegram=${UPLOAD_FLAG}" >> $GITHUB_OUTPUT
+
+      - name: Compute target date
+        id: dates
+        shell: bash
+        run: |
+          python - << 'PY'
+          from datetime import datetime, timedelta
+          import os
+          from zoneinfo import ZoneInfo
+          
+          # Читаем часовой пояс из config.py
+          with open('config.py', 'r', encoding='utf-8') as f:
+            for line in f:
+              if line.strip().startswith('TIMEZONE'):
+                timezone = line.split('"')[1]
+                break
+          
+          target_tz = ZoneInfo(timezone)
+          target_date = datetime.now(target_tz) - timedelta(days=${{ matrix.days_back }})
+          date_str = target_date.strftime('%Y%m%d')
+          
+          with open(os.environ['GITHUB_OUTPUT'], 'w', encoding='utf-8') as f:
+              f.write(f"date={date_str}\n")
+          PY
+
+      - name: Sparse checkout folders from source repo
+        id: checkout_data
+        shell: bash
+        run: |
+          set -e
+          YDATE='${{ steps.dates.outputs.date }}'
+          echo "Fetching dumps for ${YDATE}"
+          REPO=$(grep '^SOURCE_REPO' config.py | cut -d '"' -f 2)
+          
+          # Используем временную директорию для клонирования
+          rm -rf tmp_clone_${YDATE}
+          git clone --filter=blob:none --no-checkout --depth 1 ${REPO}.git tmp_clone_${YDATE}
+          cd tmp_clone_${YDATE}
+          git sparse-checkout init --cone
+          git sparse-checkout set output/${YDATE}
+          git checkout main
+          cd ..
+          
+          mkdir -p output
+          if [ -d "tmp_clone_${YDATE}/output/${YDATE}" ]; then
+            rm -rf "output/${YDATE}"
+            cp -r "tmp_clone_${YDATE}/output/${YDATE}" "output/${YDATE}"
+            echo "found=true" >> $GITHUB_OUTPUT
+          else
+            echo "No dumps found for ${YDATE}"
+            echo "found=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # Очищаем временную директорию
+          rm -rf tmp_clone_${YDATE}
+
+      - name: Create daily timelapse
+        if: steps.checkout_data.outputs.found == 'true'
+        shell: bash
+        run: |
+          set -e
+          python create_timelapse.py --date "${{ steps.dates.outputs.date }} -fps 30"
+
+      - name: Upload daily timelapse artifact
+        if: steps.checkout_data.outputs.found == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: timelapse-${{ steps.dates.outputs.date }}
+          path: timelapse/timelapse_${{ steps.dates.outputs.date }}.mp4
+          if-no-files-found: error
+
+      - name: Clean up daily dump images
+        if: always()
+        run: |
+          echo "Cleaning up source images for ${{ steps.dates.outputs.date }} to save space"
+          rm -rf output/${{ steps.dates.outputs.date }} || true
+          rm -f timelapse/timelapse_${{ steps.dates.outputs.date }}.mp4 || true
+
+  combine_weekly_timelapse:
+    runs-on: ubuntu-latest
+    needs: generate_weekly_timelapse
+    steps:
+      - name: Download all daily timelapse artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: daily-timelapses
+
+      - name: Install FFmpeg
+        uses: FedericoCarboni/setup-ffmpeg@v2
+
+      - name: Combine weekly timelapse
+        run: |
+          cd daily-timelapses
+          
+          # Собираем все видео файлы и сортируем по дате
+          find . -name "*.mp4" -type f | sort > filelist.txt
+          
+          if [ ! -s filelist.txt ]; then
+            echo "No timelapse videos found to combine."
+            exit 0
+          fi
+          
+          # Форматируем список для ffmpeg
+          sed -i "s/^/file '/;s/$/'/" filelist.txt
+          
+          echo "Combining the following videos:"
+          cat filelist.txt
+          
+          # Объединяем видео с перекодированием для гарантии совместимости
+          ffmpeg -f concat -safe 0 -i filelist.txt -c:v libx264 -preset fast -crf 23 -r 30 weekly_timelapse.mp4
+
+      - name: Upload combined weekly timelapse
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-timelapse
+          path: daily-timelapses/weekly_timelapse.mp4
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Создаем тег и релиз для недельного таймлапса
+          WEEK_START=$(date -d "7 days ago" +%Y%m%d)
+          WEEK_END=$(date +%Y%m%d)
+          TAG="weekly-timelapse-${WEEK_START}-to-${WEEK_END}"
+          TITLE="Недельный таймлапс с ${WEEK_START} по ${WEEK_END}"
+          
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG exists, uploading asset"
+            gh release upload "$TAG" daily-timelapses/weekly_timelapse.mp4 --clobber
+          else
+            echo "Creating release $TAG"
+            gh release create "$TAG" daily-timelapses/weekly_timelapse.mp4 --title "$TITLE" --notes "Автоматический недельный таймлапс"
+          fi
+
+      - name: Clean up artifacts
+        run: |
+          rm -rf daily-timelapses
+					
+			- name: Check Telegram token
+        id: check-token
+        run: |
+          if [ -n "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]; then
+            echo "has_token=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_token=false" >> $GITHUB_OUTPUT
+          fi
+					
+			- name: Trigger Telegram upload for weekly
+  if: success()
+  env:
+    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  run: |
+    # Вычисляем даты начала и конца недели с учетом таймзоны из config.py
+    TIMEZONE=$(grep -oP 'TIMEZONE\s*=\s*"\K[^"]+' config.py)
+    echo "Using timezone: $TIMEZONE"
+    
+    # Получаем текущую дату и дату 7 дней назад в нужной таймзоне
+    WEEK_END=$(python -c "
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+    import os
+    tz = ZoneInfo('$TIMEZONE')
+    now = datetime.now(tz)
+    print(now.strftime('%Y%m%d'))
+    ")
+    
+    WEEK_START=$(python -c "
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+    import os
+    tz = ZoneInfo('$TIMEZONE')
+    now = datetime.now(tz)
+    week_start = now - timedelta(days=7)
+    print(week_start.strftime('%Y%m%d'))
+    ")
+    
+    INPUT_DATE="weekly-$WEEK_START-to-$WEEK_END"
+    echo "Triggering Telegram upload for: $INPUT_DATE"
+    
+    # Запускаем workflow для загрузки в Telegram
+    gh workflow run "Upload to Telegram with Local Bot API.yml" \
+      -f date="$INPUT_DATE"
