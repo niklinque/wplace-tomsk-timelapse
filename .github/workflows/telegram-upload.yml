@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       date:
-        description: 'Date in YYYYMMDD format'
+        description: 'Date in YYYYMMDD format (for daily) or "weekly-YYYYMMDD-to-YYYYMMDD" for weekly timelapse'
         required: true
         type: string
 
@@ -15,19 +15,74 @@ jobs:
   upload:
     runs-on: ubuntu-latest
     steps:
+      - name: Determine upload type and parse dates
+        id: upload-type
+        run: |
+          INPUT_DATE="${{ github.event.inputs.date }}"
+          
+          if [[ "$INPUT_DATE" == weekly-*-to-* ]]; then
+            echo "type=weekly" >> $GITHUB_OUTPUT
+            # Извлекаем даты из формата weekly-YYYYMMDD-to-YYYYMMDD
+            WEEK_START=$(echo "$INPUT_DATE" | cut -d'-' -f2)
+            WEEK_END=$(echo "$INPUT_DATE" | cut -d'-' -f4)
+            echo "week_start=$WEEK_START" >> $GITHUB_OUTPUT
+            echo "week_end=$WEEK_END" >> $GITHUB_OUTPUT
+            echo "tag=weekly-timelapse-$WEEK_START-to-$WEEK_END" >> $GITHUB_OUTPUT
+            echo "file_pattern=weekly_timelapse.mp4" >> $GITHUB_OUTPUT
+            echo "output_file=weekly_timelapse_${WEEK_START}_to_${WEEK_END}.mp4" >> $GITHUB_OUTPUT
+          else
+            echo "type=daily" >> $GITHUB_OUTPUT
+            echo "tag=timelapse-$INPUT_DATE" >> $GITHUB_OUTPUT
+            echo "file_pattern=timelapse_$INPUT_DATE.mp4" >> $GITHUB_OUTPUT
+            echo "output_file=timelapse_$INPUT_DATE.mp4" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Format dates for message
+        id: format-dates
+        run: |
+          if [ "${{ steps.upload-type.outputs.type }}" = "weekly" ]; then
+            # Форматируем даты в человекочитаемый формат
+            START_DATE="${{ steps.upload-type.outputs.week_start }}"
+            END_DATE="${{ steps.upload-type.outputs.week_end }}"
+            
+            FORMATTED_START=$(echo "$START_DATE" | sed 's/\(....\)\(..\)\(..\)/\1-\2-\3/')
+            FORMATTED_END=$(echo "$END_DATE" | sed 's/\(....\)\(..\)\(..\)/\1-\2-\3/')
+            
+            echo "formatted_start=$FORMATTED_START" >> $GITHUB_OUTPUT
+            echo "formatted_end=$FORMATTED_END" >> $GITHUB_OUTPUT
+          else
+            DAILY_DATE="${{ github.event.inputs.date }}"
+            FORMATTED_DAILY=$(echo "$DAILY_DATE" | sed 's/\(....\)\(..\)\(..\)/\1-\2-\3/')
+            echo "formatted_daily=$FORMATTED_DAILY" >> $GITHUB_OUTPUT
+          fi
+
       - name: Download timelapse from Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
-          DATE='${{ github.event.inputs.date }}'
-          TAG="timelapse-${DATE}"
+          TAG="${{ steps.upload-type.outputs.tag }}"
+          FILE_PATTERN="${{ steps.upload-type.outputs.file_pattern }}"
+          OUTPUT_FILE="${{ steps.upload-type.outputs.output_file }}"
+          
           mkdir -p timelapse
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Found release $TAG, downloading asset"
-            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "timelapse_${DATE}.mp4" --dir timelapse --clobber
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$FILE_PATTERN" --dir timelapse --clobber
+            
+            # Переименовываем файл для удобства
+            if [ -f "timelapse/$FILE_PATTERN" ]; then
+              mv "timelapse/$FILE_PATTERN" "timelapse/$OUTPUT_FILE"
+              echo "✅ File downloaded and renamed to $OUTPUT_FILE"
+            else
+              echo "❌ File $FILE_PATTERN not found in release"
+              ls -la timelapse/
+              exit 1
+            fi
           else
             echo "❌ Release $TAG not found"
+            echo "Available releases:"
+            gh release list --repo "$GITHUB_REPOSITORY" --limit 10
             exit 1
           fi
 
@@ -81,7 +136,7 @@ jobs:
           # Клонируем репозиторий TDLib с конкретной версией
           git clone --recursive https://github.com/tdlib/td.git tdlib-source
           cd tdlib-source
-          # Переключаемся на стабильную версию
+          # Переключаемся на стабильную версиею
           git checkout v1.8.0
           # Очищаем git history для кэширования
           rm -rf .git
@@ -161,31 +216,63 @@ jobs:
       - name: Check if timelapse exists
         id: check
         run: |
-          if [ -f "timelapse/timelapse_${{ github.event.inputs.date }}.mp4" ]; then
+          OUTPUT_FILE="${{ steps.upload-type.outputs.output_file }}"
+          if [ -f "timelapse/$OUTPUT_FILE" ]; then
             echo "exists=true" >> $GITHUB_OUTPUT
-            echo "file_size=$(stat -f%z timelapse/timelapse_${{ github.event.inputs.date }}.mp4 2>/dev/null || stat -c%s timelapse/timelapse_${{ github.event.inputs.date }}.mp4)" >> $GITHUB_OUTPUT
+            echo "file_size=$(stat -f%z timelapse/$OUTPUT_FILE 2>/dev/null || stat -c%s timelapse/$OUTPUT_FILE)" >> $GITHUB_OUTPUT
+            echo "✅ File found: timelapse/$OUTPUT_FILE"
+            ls -la "timelapse/$OUTPUT_FILE"
           else
             echo "exists=false" >> $GITHUB_OUTPUT
+            echo "❌ File not found: timelapse/$OUTPUT_FILE"
+            ls -la timelapse/
+            exit 1
           fi
 
       - name: Upload to Telegram
         if: steps.check.outputs.exists == 'true'
         run: |
-          VIDEO_FILE="timelapse/timelapse_${{ github.event.inputs.date }}.mp4"
+          OUTPUT_FILE="${{ steps.upload-type.outputs.output_file }}"
+          VIDEO_FILE="timelapse/$OUTPUT_FILE"
           
-          # Форматируем дату для сообщения
-          FORMATTED_DATE=$(echo "${{ github.event.inputs.date }}" | sed 's/\(.\{4\}\)\(.\{2\}\)\(.\{2\}\)/\1-\2-\3/')
-          
-          # Основное сообщение
-          MESSAGE=$(echo -e "🤖 Ежедневный таймлапс за ${FORMATTED_DATE}\n\n[🎬 Репозиторий с автоматизироваными таймлапсами](https://github.com/niklinque/wplace-tomsk-timelapse/)\n[📸 Репозиторий с дампами](https://github.com/niklinque/wplace-tomsk/)")
-          
-          # Отправляем через локальный API как документ (поддерживает файлы до 2GB)
-          curl -X POST "http://localhost:8081/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
-               -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-               -F "document=@${VIDEO_FILE}" \
-               -F "caption=${MESSAGE}" \
-               -F "parse_mode=MARKDOWN" \
-               -F "disable_content_type_detection=true" \
-               --max-time 1800 \
-               --retry 3 \
-               --retry-delay 30
+          if [ "${{ steps.upload-type.outputs.type }}" = "weekly" ]; then
+            # Сообщение для недельного таймлапса с датами
+            MESSAGE=$(echo -e "📅 *Недельный таймлапс*\n\nПериод: с ${{ steps.format-dates.outputs.formatted_start }} по ${{ steps.format-dates.outputs.formatted_end }}\n\n[🎬 Репозиторий с автоматизироваными таймлапсами](https://github.com/niklinque/wplace-tomsk-timelapse/)\n[📸 Репозиторий с дампами](https://github.com/niklinque/wplace-tomsk/)")
+            
+            echo "Uploading weekly timelapse: $MESSAGE"
+            
+            # Для недельного таймлапса отправляем как видео
+            curl -X POST "http://localhost:8081/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendVideo" \
+                 -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+                 -F "video=@${VIDEO_FILE}" \
+                 -F "caption=${MESSAGE}" \
+                 -F "parse_mode=MARKDOWN" \
+                 -F "disable_content_type_detection=true" \
+                 --max-time 1800 \
+                 --retry 3 \
+                 --retry-delay 30
+          else
+            # Сообщение для ежедневного таймлапса
+            MESSAGE=$(echo -e "🤖 *Ежедневный таймлапс за ${{ steps.format-dates.outputs.formatted_daily }}*\n\n[🎬 Репозиторий с автоматизироваными таймлапсами](https://github.com/niklinque/wplace-tomsk-timelapse/)\n[📸 Репозиторий с дампами](https://github.com/niklinque/wplace-tomsk/)")
+            
+            echo "Uploading daily timelapse: $MESSAGE"
+            
+            # Для ежедневного отправляем как документ (поддерживает файлы до 2GB)
+            curl -X POST "http://localhost:8081/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
+                 -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+                 -F "document=@${VIDEO_FILE}" \
+                 -F "caption=${MESSAGE}" \
+                 -F "parse_mode=MARKDOWN" \
+                 -F "disable_content_type_detection=true" \
+                 --max-time 1800 \
+                 --retry 3 \
+                 --retry-delay 30
+          fi
+
+      - name: Cleanup
+        if: always()
+        run: |
+          # Останавливаем сервер Bot API
+          pkill -f telegram-bot-api || true
+          # Очищаем временные файлы
+          rm -rf timelapse/ bot-data/ || true
