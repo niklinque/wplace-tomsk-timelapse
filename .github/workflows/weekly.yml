@@ -104,7 +104,7 @@ jobs:
         shell: bash
         run: |
           set -e
-          python create_timelapse.py --date "${{ steps.dates.outputs.date }} --fps 30"
+          python create_timelapse.py --date "${{ steps.dates.outputs.date }}" --fps 30
 
       - name: Upload daily timelapse artifact
         if: steps.checkout_data.outputs.found == 'true'
