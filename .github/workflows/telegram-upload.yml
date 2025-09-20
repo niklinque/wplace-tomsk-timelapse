@@ -251,7 +251,7 @@ jobs:
                  -F "video=@${VIDEO_FILE}" \
                  -F "caption=${MESSAGE}" \
                  -F "parse_mode=MARKDOWN" \
-                 -F "disable_content_type_detection=true" \
+                 -F "supports_streaming=true" \
                  --max-time 1800 \
                  --retry 3 \
                  --retry-delay 30
