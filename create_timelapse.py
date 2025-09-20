@@ -156,17 +156,20 @@ def add_timestamp_overlay(image, timestamp, font_size=36):
     composed = Image.alpha_composite(base, overlay).convert('RGB')
     return composed
 
-def create_timelapse_video(images, output_path, video_width, video_height):
+def create_timelapse_video(images, output_path, video_width, video_height, fps=None):
     """
     Создает видео-таймлапс из списка изображений.
     
     Args:
         images (list): Список путей к изображениям
         output_path (str): Путь для сохранения видео
-        
-    Returns:
-        bool: True если успешно, False в случае ошибки
+        video_width (int): Ширина видео
+        video_height (int): Высота видео
+        fps (int): Количество кадров в секунду (если None, используется FPS из config.py)
     """
+    if fps is None:
+        fps = FPS
+    
     if not images:
         logger.error("Нет изображений для создания таймлапса")
         return False
