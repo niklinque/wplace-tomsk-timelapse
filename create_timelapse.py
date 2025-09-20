@@ -225,7 +225,7 @@ def create_timelapse_video(images, output_path, video_width, video_height):
 def parse_args():
     parser = argparse.ArgumentParser(description="Создание видео-таймлапса из изображений за день")
     parser.add_argument("--date", dest="date_str", help="Дата в формате YYYYMMDD. По умолчанию — вчера")
-	parser.add_argument("--fps", dest="fps", help="FPS. По умолчанию – та настройка, что в config.py")
+    parser.add_argument("--fps", dest="fps", help="FPS. По умолчанию – та настройка, что в config.py")
     return parser.parse_args()
 
 def main():
