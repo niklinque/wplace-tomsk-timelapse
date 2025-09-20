@@ -151,8 +151,7 @@ jobs:
           echo "Combining the following videos:"
           cat filelist.txt
           
-          # Объединяем видео с перекодированием для гарантии совместимости
-          ffmpeg -f concat -safe 0 -i filelist.txt -c:v libx264 -preset fast -crf 23 -r 30 weekly_timelapse.mp4
+          ffmpeg -f concat -safe 0 -i filelist.txt -c copy weekly_timelapse.mp4
 
       - name: Upload combined weekly timelapse
         uses: actions/upload-artifact@v4
