@@ -244,8 +244,8 @@ def main():
         date_str = yesterday.strftime("%Y%m%d")
     
     logger.info(f"Создаю таймлапс за {date_str}")
-		
-		if args.fps:
+    
+    if args.fps:
         FPS = args.fps
     
     # Получаем список изображений за день
