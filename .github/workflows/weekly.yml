@@ -214,7 +214,7 @@ jobs:
           from datetime import datetime, timedelta
           from zoneinfo import ZoneInfo
           tz = ZoneInfo('$TIMEZONE')
-          now = datetime.now(tz)
+          now = datetime.now(tz) - timedelta(days=1)
           week_start = now - timedelta(days=7)
           print(week_start.strftime('%Y%m%d'))
           ")
