@@ -193,37 +193,37 @@ jobs:
           fi
 					
 			- name: Trigger Telegram upload for weekly
-  if: success()
-  env:
-    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  run: |
-    # Вычисляем даты начала и конца недели с учетом таймзоны из config.py
-    TIMEZONE=$(grep -oP 'TIMEZONE\s*=\s*"\K[^"]+' config.py)
-    echo "Using timezone: $TIMEZONE"
-    
-    # Получаем текущую дату и дату 7 дней назад в нужной таймзоне
-    WEEK_END=$(python -c "
-    from datetime import datetime, timedelta
-    from zoneinfo import ZoneInfo
-    import os
-    tz = ZoneInfo('$TIMEZONE')
-    now = datetime.now(tz)
-    print(now.strftime('%Y%m%d'))
-    ")
-    
-    WEEK_START=$(python -c "
-    from datetime import datetime, timedelta
-    from zoneinfo import ZoneInfo
-    import os
-    tz = ZoneInfo('$TIMEZONE')
-    now = datetime.now(tz)
-    week_start = now - timedelta(days=7)
-    print(week_start.strftime('%Y%m%d'))
-    ")
-    
-    INPUT_DATE="weekly-$WEEK_START-to-$WEEK_END"
-    echo "Triggering Telegram upload for: $INPUT_DATE"
-    
-    # Запускаем workflow для загрузки в Telegram
-    gh workflow run "Upload to Telegram with Local Bot API.yml" \
-      -f date="$INPUT_DATE"
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Вычисляем даты начала и конца недели с учетом таймзоны из config.py
+          TIMEZONE=$(grep -oP 'TIMEZONE\s*=\s*"\K[^"]+' config.py)
+          echo "Using timezone: $TIMEZONE"
+          
+          # Получаем текущую дату и дату 7 дней назад в нужной таймзоне
+          WEEK_END=$(python -c "
+          from datetime import datetime, timedelta
+          from zoneinfo import ZoneInfo
+          import os
+          tz = ZoneInfo('$TIMEZONE')
+          now = datetime.now(tz)
+          print(now.strftime('%Y%m%d'))
+          ")
+          
+          WEEK_START=$(python -c "
+          from datetime import datetime, timedelta
+          from zoneinfo import ZoneInfo
+          import os
+          tz = ZoneInfo('$TIMEZONE')
+          now = datetime.now(tz)
+          week_start = now - timedelta(days=7)
+          print(week_start.strftime('%Y%m%d'))
+          ")
+          
+          INPUT_DATE="weekly-$WEEK_START-to-$WEEK_END"
+          echo "Triggering Telegram upload for: $INPUT_DATE"
+          
+          # Запускаем workflow для загрузки в Telegram
+          gh workflow run "Upload to Telegram with Local Bot API.yml" \
+            -f date="$INPUT_DATE"
