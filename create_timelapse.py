@@ -174,9 +174,9 @@ def create_timelapse_video(images, output_path, video_width, video_height):
     try:
         # Инициализируем видео writer
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        video_writer = cv2.VideoWriter(output_path, fourcc, FPS, (video_width, video_height))
+        video_writer = cv2.VideoWriter(output_path, fourcc, fps, (video_width, video_height))
         
-        logger.info(f"Создаю видео с {len(images)} кадрами, FPS: {FPS}")
+        logger.info(f"Создаю видео с {len(images)} кадрами, FPS: {fps}")
         
         for i, image_path in enumerate(images):
             try:
@@ -245,8 +245,7 @@ def main():
     
     logger.info(f"Создаю таймлапс за {date_str}")
     
-    if args.fps:
-        FPS = args.fps
+    fps = args.fps if args.fps is not None else FPS
     
     # Получаем список изображений за день
     images, video_width, video_height = get_images_for_date(date_str)
