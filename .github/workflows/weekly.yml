@@ -223,7 +223,7 @@ jobs:
           echo "Triggering Telegram upload for: $INPUT_DATE"
           
           # Запускаем workflow для загрузки в Telegram
-          gh workflow run "Upload to Telegram with Local Bot API.yml" \
+          gh workflow run "telegram_upload.yml" \
             -f date="$INPUT_DATE"
 
       - name: Clean up artifacts
