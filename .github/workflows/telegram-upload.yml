@@ -70,10 +70,14 @@ jobs:
             echo "Found release $TAG, downloading asset"
             gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$FILE_PATTERN" --dir timelapse --clobber
             
-            # Переименовываем файл для удобства
+            # Проверяем что файл скачался
             if [ -f "timelapse/$FILE_PATTERN" ]; then
-              mv "timelapse/$FILE_PATTERN" "timelapse/$OUTPUT_FILE"
-              echo "✅ File downloaded and renamed to $OUTPUT_FILE"
+              echo "✅ File downloaded: timelapse/$FILE_PATTERN"
+              # Для недельного таймлапса может потребоваться переименование
+              if [ "$FILE_PATTERN" != "$OUTPUT_FILE" ]; then
+                mv "timelapse/$FILE_PATTERN" "timelapse/$OUTPUT_FILE"
+                echo "✅ File renamed to: timelapse/$OUTPUT_FILE"
+              fi
             else
               echo "❌ File $FILE_PATTERN not found in release"
               ls -la timelapse/
