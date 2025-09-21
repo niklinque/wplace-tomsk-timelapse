@@ -248,8 +248,6 @@ def main():
     
     logger.info(f"Создаю таймлапс за {date_str}")
     
-    fps = args.fps if args.fps is not None else FPS
-    
     # Получаем список изображений за день
     images, video_width, video_height = get_images_for_date(date_str)
     
@@ -262,7 +260,12 @@ def main():
     output_path = os.path.join(TIMELAPSE_DIR, output_filename)
     
     # Создаем таймлапс
-    success = create_timelapse_video(images, output_path, video_width, video_height)
+    
+    if args.fps:
+        success = create_timelapse_video(images, output_path, video_width, video_height, args.fps)
+    else:
+        success = create_timelapse_video(images, output_path, video_width, video_height)
+    
     
     if success:
         logger.info(f"Таймлапс успешно создан: {output_path}")
