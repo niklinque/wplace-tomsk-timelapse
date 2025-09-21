@@ -165,15 +165,39 @@ jobs:
           path: daily-timelapses/weekly_timelapse.mp4
           if-no-files-found: error
 
+      - name: Compute weekly dates
+        id: weekly_dates
+        run: |
+          TIMEZONE=$(grep -oP 'TIMEZONE\s*=\s*"\K[^"]+' config.py)
+          
+          WEEK_START=$(python -c "
+          from datetime import datetime, timedelta
+          from zoneinfo import ZoneInfo
+          tz = ZoneInfo('$TIMEZONE')
+          now = datetime.now(tz)
+          week_start = now - timedelta(days=7)
+          print(week_start.strftime('%Y%m%d'))
+          ")
+          
+          WEEK_END=$(python -c "
+          from datetime import datetime, timedelta
+          from zoneinfo import ZoneInfo
+          tz = ZoneInfo('$TIMEZONE')
+          now = datetime.now(tz)
+          week_end = now - timedelta(days=1)
+          print(week_end.strftime('%Y%m%d'))
+          ")
+          
+          echo "WEEK_START=$WEEK_START" >> $GITHUB_OUTPUT
+          echo "WEEK_END=$WEEK_END" >> $GITHUB_OUTPUT
+        
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Создаем тег и релиз для недельного таймлапса
-          WEEK_START=$(date -d "7 days ago" +%Y%m%d)
-          WEEK_END=$(date +%Y%m%d)
-          TAG="weekly-timelapse-${WEEK_START}-to-${WEEK_END}"
-          TITLE="Недельный таймлапс с ${WEEK_START} по ${WEEK_END}"
+          TAG="weekly-timelapse-${{ steps.weekly_dates.outputs.WEEK_START }}-to-${{ steps.weekly_dates.outputs.WEEK_END }}"
+          TITLE="Недельный таймлапс с ${{ steps.weekly_dates.outputs.WEEK_START }} по ${{ steps.weekly_dates.outputs.WEEK_END }}"
           
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG exists, uploading asset"
@@ -197,29 +221,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Вычисляем даты начала и конца недели с учетом таймзоны из config.py
-          TIMEZONE=$(grep -oP 'TIMEZONE\s*=\s*"\K[^"]+' config.py)
-          echo "Using timezone: $TIMEZONE"
-          
-          # Получаем текущую дату и дату 7 дней назад в нужной таймзоне
-          WEEK_END=$(python -c "
-          from datetime import datetime
-          from zoneinfo import ZoneInfo
-          tz = ZoneInfo('$TIMEZONE')
-          now = datetime.now(tz)
-          print(now.strftime('%Y%m%d'))
-          ")
-          
-          WEEK_START=$(python -c "
-          from datetime import datetime, timedelta
-          from zoneinfo import ZoneInfo
-          tz = ZoneInfo('$TIMEZONE')
-          now = datetime.now(tz) - timedelta(days=1)
-          week_start = now - timedelta(days=7)
-          print(week_start.strftime('%Y%m%d'))
-          ")
-          
-          INPUT_DATE="weekly-$WEEK_START-to-$WEEK_END"
+          INPUT_DATE="weekly-${{ steps.weekly_dates.outputs.WEEK_START }}-to-${{ steps.weekly_dates.outputs.WEEK_END }}"
           echo "Triggering Telegram upload for: $INPUT_DATE"
           
           # Запускаем workflow для загрузки в Telegram
