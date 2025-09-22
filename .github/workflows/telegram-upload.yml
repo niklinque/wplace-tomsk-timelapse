@@ -248,10 +248,9 @@ jobs:
             # Для недельного таймлапса отправляем как видео
             curl -X POST "http://localhost:8081/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
                  -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-                 -F "video=@${VIDEO_FILE};filename=weekly_timelapse.mp4;type=video/mp4" \
+                 -F "document=@${VIDEO_FILE}" \
                  -F "caption=${MESSAGE}" \
                  -F "parse_mode=MARKDOWN" \
-                 -F "supports_streaming=true" \
                  --max-time 1800 \
                  --retry 3 \
                  --retry-delay 30
