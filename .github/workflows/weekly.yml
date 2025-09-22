@@ -157,10 +157,10 @@ jobs:
           cat filelist.txt
           ffmpeg -f concat -safe 0 -i filelist.txt \
           -f lavfi -i anullsrc=r=48000:cl=stereo \
-          -preset veryslow -crf 18 \
+          -max_muxing_queue_size 9999 \
           -vf "scale=trunc(min(1920/iw\,1920/ih)*iw/2)*2:trunc(min(1920/iw\,1920/ih)*ih/2)*2" \
-          -c:v libx264 -profile:v high -level 4.1 -pix_fmt yuv420p \
-          -c:a aac -b:a 128k \
+          -c:v libx264 -profile:v baseline -pix_fmt yuv420p -preset faster -crf 23 -maxrate 4.5M -flags +global_header \
+          -c:a aac -ac 2 \
           -shortest \
           -movflags +faststart \
           weekly_timelapse.mp4
