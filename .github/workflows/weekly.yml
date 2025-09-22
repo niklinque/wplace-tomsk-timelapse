@@ -155,8 +155,7 @@ jobs:
           
           echo "Combining the following videos:"
           cat filelist.txt
-          ffmpeg -f concat -safe 0 -i filelist.txt -c:v libx264 -preset veryslow -crf 0 -vf "scale=trunc(iw*min(1920/iw,1920/ih)/2)*2:trunc(ih*min(1920/iw,1920/ih)/2)*2" -movflags +faststart weekly_timelapse.mp4
-                    
+          ffmpeg -f concat -safe 0 -i filelist.txt -c:v libx264 -preset veryslow -crf 18 -vf "scale=trunc(min(1920/iw\,1920/ih)*iw/2)*2:trunc(min(1920/iw\,1920/ih)*ih/2)*2" -movflags +faststart weekly_timelapse.mp4
       - name: Upload combined weekly timelapse
         uses: actions/upload-artifact@v4
         with:
