@@ -249,8 +249,6 @@ jobs:
             curl -X POST "http://localhost:8081/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendVideo" \
                  -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
                  -F "video=@${VIDEO_FILE};filename=weekly_timelapse.mp4;type=video/mp4" \
-                 -F "width=3000" \
-                 -F "length=3000" \
                  -F "caption=${MESSAGE}" \
                  -F "parse_mode=MARKDOWN" \
                  -F "supports_streaming=true" \
