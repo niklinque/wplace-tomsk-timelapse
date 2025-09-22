@@ -248,7 +248,7 @@ jobs:
             # Для недельного таймлапса отправляем как видео
             curl -X POST "http://localhost:8081/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendVideo" \
                  -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-                 -F "document=@${VIDEO_FILE}" \
+                 -F "video=@${VIDEO_FILE}" \
                  -F "caption=${MESSAGE}" \
                  -F "parse_mode=MARKDOWN" \
                  -F "supports_streaming=true"
