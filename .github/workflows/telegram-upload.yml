@@ -246,14 +246,11 @@ jobs:
             echo "Uploading weekly timelapse: $MESSAGE"
             
             # Для недельного таймлапса отправляем как видео
-            curl -X POST "http://localhost:8081/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendVideo" \
+            curl -X POST "http://localhost:8081/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument" \
                  -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
                  -F "video=@${VIDEO_FILE};filename=weekly_timelapse.mp4;type=video/mp4" \
                  -F "caption=${MESSAGE}" \
                  -F "parse_mode=MARKDOWN" \
-                 -F "duration=135"
-                 -F "width=1920"
-                 -F "height=1920"
                  -F "supports_streaming=true" \
                  --max-time 1800 \
                  --retry 3 \
